@@ -17,4 +17,6 @@ def read_file(path:str) -> str:
     if not file_path.is_file():
         return f'Error : file not found : {path}'
 
-    return file_path.read_text()
+    lines = file_path.read_text().splitlines()
+    numbered = [f"{i:>4} | {line}" for i, line in enumerate(lines, start=1)]
+    return "\n".join(numbered)
