@@ -1,5 +1,6 @@
 import sys
 from code_reviewer.agents.reviewer import build_reviwer
+from code_reviewer.formatting import print_review
 
 def main() -> None:
 
@@ -14,8 +15,7 @@ def main() -> None:
         "messages": [{"role": "user", "content": f"Review the file {file_path}"}]
     })
 
-    for message in result['messages']:
-        message.pretty_print()
+    print_review(result["structured_response"])
 
 
 

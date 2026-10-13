@@ -3,6 +3,7 @@ import os
 from code_reviewer.prompts import REVIEWER_SYSTEM_PROMPT
 from code_reviewer.tools.files import read_file
 from code_reviewer.config import MODELNAME
+from code_reviewer.schemas import ReviewResult
 
 def build_reviwer():
 
@@ -10,4 +11,5 @@ def build_reviwer():
         model=MODELNAME,
         tools=[read_file],
         system_prompt=REVIEWER_SYSTEM_PROMPT,
+        response_format=ReviewResult
     )
