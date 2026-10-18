@@ -14,11 +14,25 @@ class Issue(BaseModel):
     explanation: str = Field(description="Why this is a problem")
     example: str | None = Field(
         default=None,
-        description="A concrete input that demonstrates the bug, required for bugs",
+        description="A concrete input that demonstrates the bug",
     )
     fix: str = Field(description="Short suggested fix")
+    test_code: str | None = Field(
+        default=None,
+        description=(
+            "For bugs only: Python statements with assert that describe the correct "
+            "behavior. They must pass on correct code and fail because of this bug."
+        ),
+    )
+    untestable_reason: str | None = Field(
+        default=None,
+        description=(
+            "For bugs that cannot be shown with a simple assert (they need a network, "
+            "a database, other project files, timing, or concurrency): explain why. "
+            "Use this instead of writing a test that does not really test the bug."
+        ),
+    )
 
 
 class ReviewResult(BaseModel):
-    summary: str = Field(description="Two-sentence overall assessment")
     issues: list[Issue]
