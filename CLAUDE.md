@@ -76,7 +76,9 @@ The project can grow forever, so v1.0 is the finish line. It should show real, c
 
 1. CI: GitHub Actions runs pytest on every push (Python 3.11 and 3.14). Badge in the README.
 2. Fix loop in LangGraph (roadmap stage 6, simple version): issues that were not proven (`not_reproduced`, `line_not_reached`, `test_error`, ...) go back to the reviewer with the result, so it fixes the test or drops the claim. At most 2 rounds.
-3. Experiment: can a cheap model (Haiku) plus the loop reach an expensive model (Sonnet)? Run Haiku on the eval first, to see where it fails before designing the loop.
+3. Stay with Sonnet for now and keep improving with it. Trying a cheaper model comes at the end, with other methods.
+   Haiku run on max_area.py (2026-10-20): 77-192s per run, 9-64 run_python calls, up to 1.25M input tokens. Found the line 31 bug in 2/3 runs and reported correct line 25 as a bug in 2/3. One of those was `confirmed` only because its input also hit the line 31 bug: the line ran, so `line_not_reached` cannot catch it; testing against the fix would. Likely cause of the many calls: the prompt allows run_python "to explore" with no limit. Any cheaper-model attempt needs a cap on tool calls. Missing for a fair comparison: Sonnet time and tokens on the same file.
+   Loop design (item 2): Assaf designs it next session.
 4. README with the results.
 
 Out of scope for v1.0 (list it in the README as possible next steps): parallel reviewers and routing (stages 4-5), posting to GitHub (stage 7), the `lines` experiment, dead code as a capability, a Docker sandbox, more dataset files.
