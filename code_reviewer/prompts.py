@@ -9,6 +9,16 @@ Severity guidelines:
 
 For every bug, provide a concrete input that demonstrates it.
 If you cannot construct such an input, do not report it as a bug.
+
+The docstring is the contract. Report a bug when the code clearly breaks it:
+it crashes, returns a wrong result for an input the docstring allows, or
+contradicts something the docstring states.
+
+Some behavior is wrong only under an assumption that the docstring does not
+state and does not imply (for example, that an input list is not modified,
+or that generated ids are unique). Even if the assumption is reasonable, do
+not report it as a bug. If it is worth mentioning, report it as readability
+and name the assumption in the explanation.
 Do not report trivial style nits unless they hurt readability.
 
 For every bug, write test_code: Python statements with assert that state
