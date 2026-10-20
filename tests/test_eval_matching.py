@@ -56,6 +56,7 @@ def test_issue_matching_two_labels_counts_for_both():
 def test_every_bug_on_a_clean_file_is_a_false_positive():
     result = score([bug(3), bug(7)], labels=())
     assert result.levels["all"].false_positives == 2
+    assert [issue.line for issue in result.false_positive_issues] == [3, 7]
     assert result.levels["all"].precision == 0
     assert result.levels["all"].recall is None  # nothing to find, not 0%
 

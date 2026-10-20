@@ -53,5 +53,44 @@
       "description": "The skip condition checks i == len(nums), which is never true, so the first iteration reads right_reuslts[len(nums)] and raises IndexError. Should be i == len(nums) - 1."
     }
   ],
-  "two_sum.py": []
+  "two_sum.py": [],
+  "user_utils.py": [
+    {
+      "category": "readability",
+      "lines": [
+        32
+      ],
+      "description": "not (flags ^ flags) is always True, so the second condition does nothing. The function is still correct: it returns bool(flags & 8)."
+    }
+  ],
+  "store.py": [
+    {
+      "category": "bug",
+      "lines": [
+        169,
+        171,
+        174,
+        180
+      ],
+      "description": "process_payment records raw_subtotal (before discount and tax) as charged_amount instead of total_amount. With 1 Laptop and SUMMER10 the record says 1200.0 instead of 1263.6."
+    },
+    {
+      "category": "bug",
+      "lines": [
+        68,
+        126,
+        175
+      ],
+      "description": "validate_cart checks stock per entry, not per item total. Two entries of item_01 with quantity 6 pass with stock 10; the second deduct_stock then does nothing, so 12 are sold and stock ends at 4."
+    },
+    {
+      "category": "bug",
+      "lines": [
+        14,
+        142,
+        144
+      ],
+      "description": "calculate_total ignores the ENABLE_DISCOUNTS setting. With it set to False, SUMMER10 still gives 1263.6 for 1 Laptop instead of 1404.0."
+    }
+  ]
 }

@@ -80,6 +80,12 @@ Scope: **bugs only**, small files with known bugs, match a reported bug to a lab
 - Eval script: run the reviewer 3 times per file; compute **recall** and **precision**, both over all reported bugs and over `confirmed` only (the difference shows what verification is worth).
 - With 5 files, treat the numbers as direction, not proof.
 
+## Dataset notes
+
+- `user_utils.py` tests false positives. Traps (correct code that looks wrong, not labeled): the shared mutable default `cache` on line 1 (the docstring makes it intentional and forbids modifying the result) and `for ... else` on lines 21-26. Line 32 has a readability label: `not (flags ^ flags)` is always True.
+- `store.py` is the long file (~200 lines, 5 classes) with 3 bugs: wrong charged_amount, oversell with repeated items, ENABLE_DISCOUNTS ignored. Decided as not bugs through the docstrings: hash-based user ids (stable in one process, same username replaces the user), float money rounded to 2 decimals, deduct_stock doing nothing when stock is short. Still an easy hint: total_amount is computed and never used.
+- The eval prints every false positive with its line, to see whether it landed on a trap.
+
 ## Roadmap (from README)
 
 Stage 4: parallel specialist reviewers (LangGraph). Stage 5: routing by diff size. Stage 6: critic agent with loop. Stage 7: human approval before posting to GitHub.

@@ -138,6 +138,9 @@ def print_labels(labels: dict[str, list[Label]], scores: list[FileScore]) -> Non
 
 def print_details(scores: list[FileScore], failures: list[dict]) -> None:
     for score in scores:
+        for issue in score.false_positive_issues:
+            print(f"false positive: {score.file}:{issue.line} [{issue.verification}] {issue.title}")
+    for score in scores:
         for issue in score.miscategorized:
             print(f"miscategorized: {score.file}:{issue.line} [{issue.category}] {issue.title}")
     for score in scores:

@@ -65,6 +65,7 @@ class FileScore:
     failed: int = 0
     duplicates: int = 0
     miscategorized: list[Reported] = field(default_factory=list)
+    false_positive_issues: list[Reported] = field(default_factory=list)  # at level 'all'
     unmatched_performance: int = 0
     other: int = 0  # security and readability issues, not scored
     # label id -> one entry per successful run: statuses of the issues that matched it
@@ -125,6 +126,10 @@ def score_file(file: str, runs: list[Run], labels: list[Label]) -> FileScore:
             counts.found += sum(any(matches(i, label) for i in at_level) for label in bug_labels)
             counts.correct += correct
             counts.false_positives += len(at_level) - correct
+            if level == "all":
+                score.false_positive_issues += [
+                    i for i in at_level if not any(matches(i, label) for label in bug_labels)
+                ]
 
     return score
 
@@ -143,6 +148,7 @@ def total(scores: list[FileScore]) -> FileScore:
         result.failed += score.failed
         result.duplicates += score.duplicates
         result.miscategorized += score.miscategorized
+        result.false_positive_issues += score.false_positive_issues
         result.unmatched_performance += score.unmatched_performance
         result.other += score.other
         result.label_hits.update(score.label_hits)
