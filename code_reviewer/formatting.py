@@ -36,7 +36,8 @@ def print_issue(issue, verification: Verification) -> None:
           f"{issue.title}{MARKS[verification]}")
     print(f"    {issue.explanation}")
     if issue.test_code:
-        print(f"    Test: {issue.test_code}")
+        test = issue.test_code.replace("\n", "\n          ")
+        print(f"    Test: {test}")
     if issue.untestable_reason and not issue.test_code:
         print(f"    Why no test: {issue.untestable_reason}")
     print(f"    Fix: {issue.fix}\n")
