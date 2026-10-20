@@ -2,15 +2,16 @@
 
 Usage:
     python -m evals.run_eval                    # run the reviewer, save and score
+    python -m evals.run_eval --only a.py b.py   # run only these dataset files
     python -m evals.run_eval --rescore <json>   # score saved runs against current labels
     python -m evals.run_eval --reverify <json>  # also rerun the saved tests with current verification
 """
 
+import argparse
 import hashlib
 import json
 import shutil
 import subprocess
-import sys
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -195,12 +196,27 @@ def rescore(path: Path, verify_again: bool = False) -> None:
     report(saved["model"], records, load_labels(json.loads(LABELS_PATH.read_text())))
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run and score the reviewer eval.")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--rescore", type=Path, help="score a saved run against current labels")
+    mode.add_argument("--reverify", type=Path, help="like --rescore, but rerun the saved tests first")
+    mode.add_argument("--only", nargs="+", metavar="FILE", help="run only these dataset files")
+    return parser.parse_args()
+
+
 def main() -> None:
-    if len(sys.argv) == 3 and sys.argv[1] in ("--rescore", "--reverify"):
-        rescore(Path(sys.argv[2]), verify_again=sys.argv[1] == "--reverify")
+    args = parse_args()
+    if args.rescore or args.reverify:
+        rescore(args.rescore or args.reverify, verify_again=args.reverify is not None)
         return
 
     raw_labels = json.loads(LABELS_PATH.read_text())
+    if args.only:
+        unknown = set(args.only) - set(raw_labels)
+        if unknown:
+            raise SystemExit(f"Not in labels.json: {', '.join(sorted(unknown))}")
+        raw_labels = {file: items for file, items in raw_labels.items() if file in args.only}
     labels = load_labels(raw_labels)
     sources = [DATASET_DIR / file for file in labels]
 
