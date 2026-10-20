@@ -5,16 +5,16 @@ that the verification step labels it correctly. No model is called.
 """
 
 from code_reviewer.schemas import Issue
-from code_reviewer.verification import verify_issue
+from code_reviewer.verification import code_lines, verify_issue
 
 # A tiny file with a known bug: add() subtracts instead of adding.
 SOURCE = "def add(a, b):\n    return a - b\n"
 
 
-def bug(test_code=None, untestable_reason=None):
+def bug(test_code=None, untestable_reason=None, line=2):
     """Build a bug report as if the model had returned it."""
     return Issue(
-        line=2,
+        line=line,
         category="bug",
         severity="critical",
         title="t",
@@ -71,6 +71,38 @@ def test_main_block_in_source_does_not_run():
     # Code under __main__ must not run during verification.
     source = SOURCE + "\nif __name__ == '__main__':\n    raise SystemExit('should not run')\n"
     assert verify_issue(source, bug("assert add(2, 3) == 5")) == "confirmed"
+
+
+# --- The reported line must run ---
+
+# Line 3 is dead: f only gets here for x > 0, and then it already returned.
+DEAD = "def f(x):\n    if x > 0:\n        return 1\n    return 0\n"
+
+
+def test_failure_on_a_line_that_never_ran_is_line_not_reached():
+    # The test fails, but because of line 4, not the reported line 3.
+    # The line above (2) ran, which is why ±1 would wrongly accept it.
+    assert verify_issue(DEAD, bug("assert f(-1) == 1", line=3)) == "line_not_reached"
+
+
+def test_failure_on_a_line_that_ran_is_confirmed():
+    assert verify_issue(DEAD, bug("assert f(-1) == 1", line=4)) == "confirmed"
+
+
+def test_crash_on_a_line_that_never_ran_is_line_not_reached():
+    source = "def f(x):\n    if x:\n        return 1\n    return 1 / x\n"
+    assert verify_issue(source, bug("f(0)", line=3)) == "line_not_reached"
+
+
+def test_line_without_code_counts_when_a_neighbor_ran():
+    # `else:` is never recorded as executed; the line under it is.
+    source = "def f(x):\n    if x > 0:\n        return 1\n    else:\n        return -1\n"
+    assert 4 not in code_lines(source)
+    assert verify_issue(source, bug("assert f(0) == 0", line=4)) == "confirmed"
+
+
+def test_passing_test_ignores_the_reported_line():
+    assert verify_issue(DEAD, bug("assert f(1) == 1", line=3)) == "not_reproduced"
 
 
 # --- No test was written ---

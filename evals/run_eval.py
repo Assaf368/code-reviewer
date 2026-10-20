@@ -3,6 +3,7 @@
 Usage:
     python -m evals.run_eval                    # run the reviewer, save and score
     python -m evals.run_eval --rescore <json>   # score saved runs against current labels
+    python -m evals.run_eval --reverify <json>  # also rerun the saved tests with current verification
 """
 
 import hashlib
@@ -19,8 +20,9 @@ from pathlib import Path
 from code_reviewer.config import MODELNAME
 from code_reviewer.pipeline import review_file
 from code_reviewer.prompts import REVIEWER_SYSTEM_PROMPT
-from code_reviewer.schemas import ReviewResult
+from code_reviewer.schemas import Issue, ReviewResult
 from code_reviewer.tools import files
+from code_reviewer.verification import verify_issue
 from evals.matching import LEVELS, FileScore, Label, Reported, Run, score_file, total
 
 RUNS = 3
@@ -160,18 +162,39 @@ def report(model: str, records: list[dict], labels: dict[str, list[Label]]) -> N
     print_details(scores, [r for r in records if r["issues"] is None])
 
 
-def rescore(path: Path) -> None:
+def reverify(records: list[dict]) -> list[dict]:
+    """Rerun each saved test with the current verify_issue. No model calls."""
+    updated = []
+    for record in records:
+        if record["issues"] is None:
+            updated.append(record)
+            continue
+        source = (DATASET_DIR / record["file"]).read_text()
+        issues = []
+        for saved in record["issues"]:
+            issue = Issue(**{k: v for k, v in saved.items() if k != "verification"})
+            verification = verify_issue(source, issue)
+            if verification != saved["verification"]:
+                print(f"{record['file']} run {record['run']} line {saved['line']}: "
+                      f"{saved['verification']} → {verification}")
+            issues.append(saved | {"verification": verification})
+        updated.append(record | {"issues": issues})
+    return updated
+
+
+def rescore(path: Path, verify_again: bool = False) -> None:
     """Score saved runs against the current labels, without calling the model."""
     saved = json.loads(path.read_text())
     for file, digest in saved["dataset_sha256"].items():
         if sha256((DATASET_DIR / file).read_text()) != digest:
             print(f"Warning: {file} changed since this run; label lines may not match.")
-    report(saved["model"], saved["runs"], load_labels(json.loads(LABELS_PATH.read_text())))
+    records = reverify(saved["runs"]) if verify_again else saved["runs"]
+    report(saved["model"], records, load_labels(json.loads(LABELS_PATH.read_text())))
 
 
 def main() -> None:
-    if len(sys.argv) == 3 and sys.argv[1] == "--rescore":
-        rescore(Path(sys.argv[2]))
+    if len(sys.argv) == 3 and sys.argv[1] in ("--rescore", "--reverify"):
+        rescore(Path(sys.argv[2]), verify_again=sys.argv[1] == "--reverify")
         return
 
     raw_labels = json.loads(LABELS_PATH.read_text())

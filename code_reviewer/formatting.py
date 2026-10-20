@@ -10,6 +10,7 @@ MARKS = {
     "not_reproduced": " ✗ not reproduced",
     "crashed": " ! crashes",
     "inconclusive": " ? inconclusive",
+    "line_not_reached": " ? reported line never ran",
     "test_error": " ⚠ broken test",
     "source_error": " ⚠ file failed to load",
     "unverified": " · needs manual check",

@@ -1,3 +1,4 @@
+import json
 import subprocess
 import sys
 import tempfile
@@ -19,12 +20,43 @@ SOURCE_FAILED_TO_LOAD = 5
 TEST_RAISED = 6
 SOURCE_RAISED = 7
 
+EXECUTED_LINES_FILE = "executed_lines.json"
+
 RUNNER = """
+import atexit
+import json
 import os
 import sys
 import traceback
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+TARGET_FILE = os.path.join(HERE, "target.py")
+sys.path.insert(0, HERE)
+
+# Record every line of the reviewed file that runs, and save the list on any exit.
+executed = set()
+
+
+def trace_lines(frame, event, arg):
+    if event == "line":
+        executed.add(frame.f_lineno)
+    return trace_lines
+
+
+def trace_calls(frame, event, arg):
+    if frame.f_code.co_filename == TARGET_FILE:
+        return trace_lines
+    return None
+
+
+def save_executed_lines():
+    sys.settrace(None)
+    with open(os.path.join(HERE, "executed_lines.json"), "w") as lines_file:
+        json.dump(sorted(executed), lines_file)
+
+
+atexit.register(save_executed_lines)
+sys.settrace(trace_calls)
 
 try:
     import target
@@ -55,6 +87,7 @@ class ExecutionResult:
     stdout: str
     stderr: str
     timed_out: bool = False
+    executed_lines: set[int] | None = None  # lines of the reviewed file that ran (run_test only)
 
 
 def _run(script: Path, cwd: str) -> ExecutionResult:
@@ -86,7 +119,11 @@ def run_test(source: str, test_code: str) -> ExecutionResult:
         (tmp / "target.py").write_text(source)
         (tmp / "test_code.py").write_text(test_code)
         (tmp / "runner.py").write_text(RUNNER)
-        return _run(tmp / "runner.py", tmp_dir)
+        result = _run(tmp / "runner.py", tmp_dir)
+        lines_path = tmp / EXECUTED_LINES_FILE
+        if lines_path.exists():
+            result.executed_lines = set(json.loads(lines_path.read_text()))
+        return result
 
 
 @tool

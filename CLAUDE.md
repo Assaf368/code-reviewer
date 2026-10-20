@@ -53,12 +53,12 @@ Tracing: LangSmith, EU endpoint, configured only through `.env` (`LANGSMITH_PROJ
 6. **The schema lets the model say "can't test".** `untestable_reason` exists so the model doesn't invent fake tests for bugs that need a network, DB, other files, timing, or concurrency.
 7. **The test runner** imports the reviewed file as module `target` and runs the test in a separate namespace with only the target's names (a previous version leaked the runner's own variables and broke files that defined `f`, `test`, or `sys`). The failing frame decides the exit code.
 
-Verification statuses: `confirmed`, `not_reproduced`, `crashed`, `inconclusive`, `test_error`, `source_error`, `unverified`, `missing_test`, `not_tested`.
+Verification statuses: `confirmed`, `not_reproduced`, `crashed`, `inconclusive`, `line_not_reached`, `test_error`, `source_error`, `unverified`, `missing_test`, `not_tested`.
 
 ## Known risks still open
 
 - The assert itself may encode a wrong assumption about correct behavior (a failing assert ≠ a real bug).
-- A failing test does not prove the reported mechanism. Seen in the eval: a bug reported on unreachable palindrome.py:22 came out `confirmed` because its input failed on line 16. Planned: a `line_not_reached` status (record executed lines with sys.settrace in the RUNNER). A line not reached by one test is not proof of dead code, so the status says only that the confirmation does not belong to the claim.
+- A failing test does not prove the reported mechanism. Seen in the eval: a bug reported on unreachable palindrome.py:22 came out `confirmed` because its input failed on line 16. Now handled: the RUNNER records executed lines (sys.settrace), and a failure whose reported line never ran becomes `line_not_reached`. A line with code must run exactly (±1 would accept a dead `return` under a live `if`); a line without code (`else:`, comment) counts if a neighbor ran. It does not prove dead code, only that the confirmation does not belong to the claim. It still cannot catch a wrong explanation on a line that did run.
 - Dead code as a reviewer capability (minor severity): a separate experiment, after the lines experiment, one variable at a time.
 - The model may not understand what undocumented code is supposed to do. Idea: an `intended_behavior` field so the assumption is visible.
 - Idea: check each test against the suggested fix (it should fail on the original and pass on the fix).

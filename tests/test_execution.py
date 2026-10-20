@@ -52,3 +52,14 @@ def test_output_is_captured():
     result = execute_python("print('hello')")
     assert result.exit_code == 0
     assert result.stdout.strip() == "hello"
+
+def test_run_test_records_executed_lines():
+    source = "def f(x):\n    if x > 0:\n        return 1\n    return 0\n"
+    result = run_test(source, "assert f(-1) == 1")
+    assert result.executed_lines == {1, 2, 4}  # line 3 never ran
+
+
+def test_executed_lines_are_saved_when_the_source_crashes():
+    result = run_test("def boom():\n    return 1 / 0\n", "boom()")
+    assert result.exit_code == SOURCE_RAISED
+    assert 2 in result.executed_lines
