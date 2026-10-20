@@ -1,0 +1,512 @@
+{
+  "timestamp": "20261020-105445",
+  "model": "anthropic:claude-sonnet-5-5",
+  "runs_per_file": 3,
+  "git": {
+    "commit": "755c6f3dbeb27ee394b4f3bc4cd54ca0b36b03f6",
+    "dirty": true
+  },
+  "prompt_sha256": "9bd96e558359eeffebc043fe52ffc31ac05a7729cfeec1d67070a5ed9574e1a5",
+  "schema_sha256": "20497e3f6727a7586be8d66c7ca2314dfd927420a5dfe665f58b53a332b25e0e",
+  "dataset_sha256": {
+    "max_area.py": "910143e5bf34b303bc5f7067472a08bb3fc8bc4d65865556f62fee83806bba96",
+    "three_sum.py": "bbfc4219aac8163218b4a6ca4bd94aced50d796b2163e4e3737418b9e5075429",
+    "palindrome.py": "262aa5cda398b9daae448d698ff99cf742adfb2fb61726671bb35189f7ae1113",
+    "product_except_self.py": "509ca877a2eed27aaa0d7d3297e4f81f42fb4b535b12786597504b62257a7407",
+    "two_sum.py": "ee3ea20aa3adcffc2c9e07d78091e1005444a002143e5637eba968326e4fdea0"
+  },
+  "labels": {
+    "max_area.py": [
+      {
+        "category": "bug",
+        "lines": [
+          31
+        ],
+        "description": "After moving left, compares nums[left] to nums[right - 1] instead of nums[left - 1], so a taller left line is skipped. max_area([1, 5, 10, 6]) returns 3 instead of 10."
+      }
+    ],
+    "three_sum.py": [
+      {
+        "category": "bug",
+        "lines": [
+          18
+        ],
+        "description": "After finding a triplet, left is not advanced past equal values, so the same triplet is added twice. three_sum([-2, 0, 0, 2, 2], 0) returns [[0, 2, -2], [0, 2, -2]]."
+      }
+    ],
+    "palindrome.py": [
+      {
+        "category": "bug",
+        "lines": [
+          16,
+          22
+        ],
+        "description": "When the pointers meet while skipping non-alphanumeric characters, the function returns False instead of True. is_palindrome('a,,a') and is_palindrome(',,,') return False."
+      }
+    ],
+    "product_except_self.py": [
+      {
+        "category": "bug",
+        "lines": [
+          6,
+          7,
+          8,
+          13
+        ],
+        "description": "[] * len(nums) creates empty lists, so the first index assignment raises IndexError. Should be [1] * len(nums)."
+      },
+      {
+        "category": "bug",
+        "lines": [
+          16,
+          19
+        ],
+        "description": "The skip condition checks i == len(nums), which is never true, so the first iteration reads right_reuslts[len(nums)] and raises IndexError. Should be i == len(nums) - 1."
+      }
+    ],
+    "two_sum.py": []
+  },
+  "runs": [
+    {
+      "file": "max_area.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 31,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Wrong index in the left-move skip check",
+          "explanation": "After `left += 1`, the code compares `nums[left]` with `nums[right - 1]`. It should compare it with the old left line, `nums[left - 1]`. The right-move branch correctly compares against the old pointer. Because of this, the area calculation is sometimes skipped for a pair that would have been the best one.",
+          "example": "max_area([0, 2, 2]) returns 0, but the correct answer is 2, from the pair at indices 1 and 2.",
+          "fix": "Use `if nums[left] <= nums[left - 1]:`. Alternatively, drop the flag and compute the area on every iteration.",
+          "test_code": "assert max_area([0, 2, 2]) == 2, max_area([0, 2, 2])",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "run": 1
+    },
+    {
+      "file": "max_area.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 31,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Wrong index when deciding whether to skip the area calculation after moving left",
+          "explanation": "After `left += 1`, the code compares `nums[left]` with `nums[right - 1]`. It should compare it with the previous left line, `nums[left - 1]`. This mirrors the right-pointer branch, which compares with `nums[right + 1]`. The wrong comparison sets `calc_area_flag` to False for pairs that are better than the previous one, so the best area is missed.",
+          "example": "max_area([0, 2, 3]) returns 0, but the correct answer is 2, from the lines at index 1 and 2.",
+          "fix": "Use `if nums[left] <= nums[left - 1]:`. Alternatively, remove the flag and always compute the area.",
+          "test_code": "assert max_area([0, 2, 3]) == 2, max_area([0, 2, 3])",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 16,
+          "category": "readability",
+          "severity": "minor",
+          "title": "The calc_area_flag optimization adds complexity and caused the bug",
+          "explanation": "Skipping the area calculation saves only O(1) work per step. It makes the loop harder to follow and is the source of the bug above. The if/else that sets the flag can also be a single boolean expression.",
+          "example": null,
+          "fix": "Compute the area on every iteration, which is still O(n) overall. Otherwise, simplify the flag logic and fix the index.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 2
+    },
+    {
+      "file": "max_area.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 31,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Wrong comparison after moving the left pointer skips valid areas",
+          "explanation": "After `left += 1`, the code should compare the new left height with the old left height, `nums[left-1]`. That mirrors the right-pointer branch on line 25. Instead it compares with `nums[right-1]`, which is unrelated. The area calculation is then skipped for pairs that could be the maximum. In `[0, 6, 1]`, after left moves to 1 it compares `nums[1]` with `nums[1]`, so the flag is set to False and the answer is 0 instead of 1.",
+          "example": "max_area([0, 6, 1]) returns 0, but the correct answer is 1. max_area([0, 3, 5, 4]) returns 0, but the correct answer is 6.",
+          "fix": "Use `if nums[left] <= nums[left - 1]:` on line 31. Better still, drop the flag and compute the area on every iteration.",
+          "test_code": "assert max_area([0, 6, 1]) == 1, max_area([0, 6, 1])\nassert max_area([0, 3, 5, 4]) == 6, max_area([0, 3, 5, 4])\nassert max_area([0, 2, 5, 6, 4]) == 8, max_area([0, 2, 5, 6, 4])",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 16,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Convoluted skip flag adds complexity and caused the bug",
+          "explanation": "The `calc_area_flag` optimization saves only an O(1) area computation per step, and it makes the code harder to follow. The branches duplicate logic, and the duplication is where the line 31 bug came from.",
+          "example": null,
+          "fix": "Remove the flag and call `calc_area` on every iteration. Set the flag with a plain boolean expression if you keep it.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 3
+    },
+    {
+      "file": "three_sum.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 17,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Duplicate triplets returned after a match",
+          "explanation": "After a match, left and right each move by one position. They don't skip over values equal to the ones just used. When the array has repeated values, the same triplet is appended again. This breaks the 'no duplicates' requirement. Only the outer index i skips duplicates.",
+          "example": "three_sum([-2,0,0,2,2], 0) returns [[0, 2, -2], [0, 2, -2]]",
+          "fix": "After recording a match, advance left while nums[left] == nums[left-1] (with left < right). Optionally do the same for right.",
+          "test_code": "res = three_sum([-2,0,0,2,2], 0)\nassert len({tuple(sorted(t)) for t in res}) == len(res), res\nassert len(res) == 1, res",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 9,
+          "category": "bug",
+          "severity": "minor",
+          "title": "Input list is mutated by sorting",
+          "explanation": "nums.sort() sorts the caller's list in place. This is a surprising side effect for a function that is meant to return a result.",
+          "example": "a=[3,1,2]; three_sum(a,6); a becomes [1,2,3]",
+          "fix": "Use nums = sorted(nums), or sort a copy.",
+          "test_code": "a = [3, 1, 2]\nthree_sum(a, 6)\nassert a == [3, 1, 2], a",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "run": 1
+    },
+    {
+      "file": "three_sum.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 18,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Duplicate triplets returned after a match",
+          "explanation": "After a match, `left` and `right` move by one only. They do not skip values equal to the ones just used. The same triplet is therefore appended again when neighbouring values repeat. The docstring says the result must not contain the same triplet twice.",
+          "example": "three_sum([-2,0,0,2,2], 0) returns [[0, 2, -2], [0, 2, -2]]",
+          "fix": "After recording a match, advance `left` while `nums[left] == nums[left-1]`. Also move `right` down while `nums[right] == nums[right+1]`. Alternatively, store the sorted triplets in a set.",
+          "test_code": "r = three_sum([-2,0,0,2,2], 0)\nassert len(r) == 1, r\nassert len({tuple(sorted(t)) for t in r}) == len(r), r",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 9,
+          "category": "bug",
+          "severity": "minor",
+          "title": "Input list is mutated by sorting",
+          "explanation": "`nums.sort()` sorts the caller's list in place. This is an unexpected side effect for a function that should only compute a result.",
+          "example": "a=[3,1,2]; three_sum(a,6) leaves a == [1,2,3]",
+          "fix": "Use `nums = sorted(nums)`.",
+          "test_code": "a = [3,1,2]\nthree_sum(a, 6)\nassert a == [3,1,2], a",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "run": 2
+    },
+    {
+      "file": "three_sum.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 17,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Duplicate triplets returned: no duplicate skipping after a match",
+          "explanation": "After a match, left and right each move one step. They are not advanced past equal neighbouring values. The same triplet is therefore appended again when nums has repeated values. This breaks the requirement that the result has no repeated triplets.",
+          "example": "three_sum([-2,0,0,2,2], 0) returns [[0,2,-2],[0,2,-2]]",
+          "fix": "After appending, advance left while nums[left]==nums[left-1] and left<right. Optionally do the same for right. Alternatively, store sorted tuples in a set.",
+          "test_code": "res = three_sum([-2,0,0,2,2], 0)\nassert len({tuple(sorted(t)) for t in res}) == len(res), res\nassert len(res) == 1, res",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 9,
+          "category": "bug",
+          "severity": "minor",
+          "title": "Mutates the caller's input list",
+          "explanation": "nums.sort() sorts the argument in place. This is an unexpected side effect for a function that should only return a result.",
+          "example": "a=[3,1,2]; three_sum(a,6) leaves a as [1,2,3]",
+          "fix": "Use nums = sorted(nums).",
+          "test_code": "a = [3,1,2]\nthree_sum(a, 6)\nassert a == [3,1,2], a",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "run": 3
+    },
+    {
+      "file": "palindrome.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 16,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Strings with no alphanumerics, or whose cursors meet while skipping, return False",
+          "explanation": "When the skip loops make the two indices meet, everything left over was non-alphanumeric, so the string is a palindrome. The code returns False instead. This contradicts the docstring, which says a string with no letters or digits counts as a palindrome. The same wrong return on line 22 affects the right-hand skip loop.",
+          "example": "is_palindrome(\",,\") returns False; is_palindrome(\"  \") returns False",
+          "fix": "Return True when the indices meet while skipping. Better, restructure the loops: `while left_index < right_index and not word[left_index].isalnum(): left_index += 1`, and do the same for the right index. Then, if left_index >= right_index, break out of the loop. After the loop, return True.",
+          "test_code": "assert is_palindrome(\",,\") is True, is_palindrome(\",,\")\nassert is_palindrome(\"  \") is True, is_palindrome(\"  \")\nassert is_palindrome(\"!?.\") is True, is_palindrome(\"!?.\")",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 22,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Right-side skip also returns False when the indices meet",
+          "explanation": "If the right cursor skips non-alphanumeric characters until it reaches the left index, the function returns False. The remaining characters are just the center character, so the result should be True.",
+          "example": "is_palindrome(\"a,,\") returns False, although \"a,,\" is the palindrome \"a\" once punctuation is skipped. Note that is_palindrome(\"ab,\") returning False is correct.",
+          "fix": "Return True, or use the bounded skip loops described above.",
+          "test_code": "assert is_palindrome(\"a,,\") is True, is_palindrome(\"a,,\")\nassert is_palindrome(\"a, ,\") is True, is_palindrome(\"a, ,\")",
+          "untestable_reason": null,
+          "verification": "not_reproduced"
+        }
+      ],
+      "run": 1
+    },
+    {
+      "file": "palindrome.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 16,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Returns False when the scanning pointers meet on non-alphanumeric characters",
+          "explanation": "When the skip loops reach the point where the pointers meet, the code returns False. It should return True, because nothing is left to compare. This breaks any input where only non-alphanumeric characters remain in the middle, and any input with no alphanumerics at all. The docstring says the latter must count as a palindrome. The same flaw is in the right-hand skip loop at line 22.",
+          "example": "is_palindrome(\"a,,a\") returns False. is_palindrome(\",,\") returns False. is_palindrome(\"A man, a plan, a canal: Panama\") works only because its middle is alphanumeric.",
+          "fix": "Bound the skip loops by `left_index < right_index` (for example `while left_index < right_index and not word[left_index].isalnum(): left_index += 1`). Compare only if the pointers haven't crossed, and return True when the loop ends.",
+          "test_code": "assert is_palindrome(\",,\") is True, is_palindrome(\",,\")\nassert is_palindrome(\"a,,a\") is True, is_palindrome(\"a,,a\")\nassert is_palindrome(\"., \") is True, is_palindrome(\"., \")",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 22,
+          "category": "bug",
+          "severity": "major",
+          "title": "Same early False return in the right-hand skip loop",
+          "explanation": "If the right pointer meets the left pointer while skipping punctuation, the function returns False instead of ending the scan with True.",
+          "example": "is_palindrome(\"a,\") works, but a case like \"ab,,ba\" is also misjudged, because the middle punctuation hits the check at line 16 or line 22.",
+          "fix": "Use the bounded skip loops described above.",
+          "test_code": "assert is_palindrome(\"ab,,ba\") is True, is_palindrome(\"ab,,ba\")",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "run": 2
+    },
+    {
+      "file": "palindrome.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 16,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Strings with only non-alphanumeric characters (length \u2265 2) return False",
+          "explanation": "The docstring says a string with no letters or digits counts as a palindrome. When the skip loops reach left_index >= right_index, they return False instead of True. The same wrong return is on line 22. The check should end the scan with True, because everything left has been skipped.",
+          "example": "is_palindrome(\",,\") returns False; \"!? \" also returns False",
+          "fix": "Return True instead of False in both guards, or restructure the loops to use `while left_index < right_index and not word[left_index].isalnum()`.",
+          "test_code": "assert is_palindrome(\",,\") is True, is_palindrome(\",,\")\nassert is_palindrome(\"!? \") is True, is_palindrome(\"!? \")\nassert is_palindrome(\" ,a,b, \") is False",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "run": 3
+    },
+    {
+      "file": "product_except_self.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 6,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Result lists are initialized empty, so indexing raises IndexError",
+          "explanation": "`[] * n` is still `[]`. Assigning to `left_results[i]` on line 13 raises IndexError. Line 7 (`right_reuslts`) and line 8 (`results`) have the same problem. The function crashes on every valid input. Left and right products also need a base value of 1, not an empty list.",
+          "example": "product_except_self([1,2,3,4])",
+          "fix": "Use `left_results = [1] * len(nums)`, and do the same for `right_results` and `results`.",
+          "test_code": "assert product_except_self([1,2,3,4]) == [24,12,8,6]",
+          "untestable_reason": null,
+          "verification": "crashed"
+        },
+        {
+          "line": 15,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Right pass starts at the last index and reads out of bounds",
+          "explanation": "The loop starts at i = len(nums)-1. The guard `i == len(nums)` can never be true. So `nums[i+1]` and `right_reuslts[i+1]` are read out of range on the first iteration. The guard should skip the last index, `len(nums)-1`, and the loop should start at `len(nums)-2`.",
+          "example": "product_except_self([2,3])",
+          "fix": "Loop `for i in range(len(nums)-2, -1, -1)` with right initialized to 1s, and drop the bogus guard.",
+          "test_code": "assert product_except_self([2,3]) == [3,2]",
+          "untestable_reason": null,
+          "verification": "crashed"
+        },
+        {
+          "line": 7,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Misspelled variable name and redundant passes",
+          "explanation": "`right_reuslts` is a typo. The three separate arrays and the dead `if i == len(nums)` branch make the code harder to read. A single output array plus a running right product would use O(1) extra space.",
+          "example": null,
+          "fix": "Rename it to `right_results`, or use one result array with a running suffix product.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 1
+    },
+    {
+      "file": "product_except_self.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 6,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Lists are initialised empty, so every index assignment raises IndexError",
+          "explanation": "`[] * n` is still `[]`. The later `left_results[i] = ...` on line 13 therefore raises IndexError. The same mistake appears on lines 7 and 8. The base values are also never set. `left_results[0]` and `right_results[n-1]` should both be 1.",
+          "example": "product_except_self([1, 2, 3, 4]) raises IndexError: list index out of range",
+          "fix": "Initialise with `[1] * len(nums)` for all three lists. This also gives the correct base value of 1 at the ends.",
+          "test_code": "assert product_except_self([1, 2, 3, 4]) == [24, 12, 8, 6], product_except_self([1, 2, 3, 4])",
+          "untestable_reason": null,
+          "verification": "crashed"
+        },
+        {
+          "line": 16,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Wrong sentinel check in right-to-left pass causes out-of-range access",
+          "explanation": "The loop starts at i = len(nums)-1, but the skip condition tests `i == len(nums)`, which never happens. On the first iteration the code reads `right_reuslts[i+1]` and `nums[i+1]`, which are out of range. Even with the lists initialised correctly, this raises IndexError. The loop should skip, or start after, the last index.",
+          "example": "product_except_self([2, 3]) raises IndexError",
+          "fix": "Loop `for i in range(len(nums) - 2, -1, -1)` and drop the dead check. Keep `right[n-1] = 1`.",
+          "test_code": "assert product_except_self([2, 3]) == [3, 2], product_except_self([2, 3])",
+          "untestable_reason": null,
+          "verification": "crashed"
+        },
+        {
+          "line": 7,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Typo in variable name `right_reuslts`",
+          "explanation": "The misspelling is used consistently but hurts readability and searchability. The extra `results` list and the three passes are also unnecessary.",
+          "example": null,
+          "fix": "Rename it to `right_results`. Better, use a single result list and a running right-hand product.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 2
+    },
+    {
+      "file": "product_except_self.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 6,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Lists are initialized empty, so index assignment raises IndexError",
+          "explanation": "`[] * n` is still `[]`. The later `left_results[i] = ...` and `results[i] = ...` assignments therefore raise IndexError. The function crashes on any valid input. The base value `left_results[0] = 1` is also never set.",
+          "example": "product_except_self([1,2,3,4]) raises IndexError: list assignment index out of range",
+          "fix": "Initialize with `[1] * len(nums)` for all three lists, so the base values are 1.",
+          "test_code": "assert product_except_self([1, 2, 3, 4]) == [24, 12, 8, 6], product_except_self([1, 2, 3, 4])",
+          "untestable_reason": null,
+          "verification": "crashed"
+        },
+        {
+          "line": 15,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Right-pass loop starts at the last index and reads out of bounds",
+          "explanation": "The loop starts at `i = len(nums)-1`, and the guard `i == len(nums)` can never be true. At the first iteration `right_reuslts[i+1]` and `nums[i+1]` are out of range. The loop should start at `len(nums)-2`, with `right[n-1] = 1` as the base. Even once the lists are initialized, this still raises IndexError.",
+          "example": "product_except_self([2,3]) raises IndexError even after the list initialization is fixed",
+          "fix": "Use `for i in range(len(nums) - 2, -1, -1):` and remove the dead guard.",
+          "test_code": "assert product_except_self([2, 3]) == [3, 2], product_except_self([2, 3])",
+          "untestable_reason": null,
+          "verification": "crashed"
+        },
+        {
+          "line": 7,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Typo in variable name and wasteful extra arrays",
+          "explanation": "`right_reuslts` is misspelled. Three O(n) arrays are used where one output array plus a running right product would be enough.",
+          "example": null,
+          "fix": "Rename it to `right_results`. Optionally use a single result array and a running suffix product.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 3
+    },
+    {
+      "file": "two_sum.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 1,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Parameters and variables named `dict` shadow the builtin, and the helpers add nothing",
+          "explanation": "`registerInDict` and `getIndex` take a parameter called `dict`, and `two_sum` has a local variable with the same name. This shadows the builtin type. The two helpers only wrap a single dict assignment or lookup, so they add indirection without making the code clearer. The function names also use camelCase, not PEP 8 snake_case. The algorithm itself is correct. I found no input that gives a wrong result.",
+          "example": null,
+          "fix": "Remove the helpers and use a local such as `seen = {}`. Write `seen[x] = i` and `return [seen[value], i]` directly.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 1
+    },
+    {
+      "file": "two_sum.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 1,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Parameter and variable named `dict` shadow the builtin, and the helpers are needless wrappers",
+          "explanation": "`registerInDict` and `getIndex` take a parameter called `dict`. `two_sum` also uses `dict` as a local variable name. This shadows the builtin type. The two helpers only wrap a single dict assignment and a single dict lookup, so they add indirection and no value. The names are also camelCase, which is not PEP 8 style.",
+          "example": null,
+          "fix": "Remove the helpers and use a local such as `seen = {}`. Write `seen[x] = i` and `seen[value]` directly in `two_sum`.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 2
+    },
+    {
+      "file": "two_sum.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 1,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Parameter and variable named `dict` shadow the builtin, and the helpers add no value",
+          "explanation": "`registerInDict` and `getIndex` use `dict` as a parameter name, and `two_sum` uses it as a local variable. This shadows the builtin type. The two helpers only wrap a plain dict assignment and lookup, so they add indirection without adding clarity. The names also use camelCase, which is not PEP 8. The algorithm itself is correct. I found no input where it returns a wrong result.",
+          "example": null,
+          "fix": "Remove the helpers and use a dict named `seen`. Write `if value in seen: return [seen[value], i]` and `seen[x] = i`.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 3
+    }
+  ]
+}
