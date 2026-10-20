@@ -1,5 +1,7 @@
 # Code Reviewer
 
+[![tests](https://github.com/Assaf368/code-reviewer/actions/workflows/tests.yml/badge.svg)](https://github.com/Assaf368/code-reviewer/actions/workflows/tests.yml)
+
 An AI code review agent built with [LangChain](https://docs.langchain.com). It reads a Python file and returns a structured review: each issue has a line number, a category, a severity, an explanation and a suggested fix.
 
 Every reported bug also comes with an assert-based test. The model writes the test, but the project's own code runs it and decides whether the bug is real. A bug that is not proven by its test is shown as unproven.
