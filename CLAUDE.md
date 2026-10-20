@@ -70,15 +70,23 @@ Verification statuses: `confirmed`, `not_reproduced`, `crashed`, `inconclusive`,
   Definition of one bug, written the same way in the prompt and in the labels: if fixing one place leaves the other still broken, they are two bugs (e.g. the same mistake copied into two loops). If all places must change together, it is one bug with several lines. A broken function called from two places is one bug, on the function's line.
   Needs a dataset file where one bug really spans several lines that all run; the current dataset has 0 duplicates.
 
-## Current task: first eval dataset
+## Goal: v1.0 (agreed 2026-10-20, a few days of work)
 
-Scope: **bugs only**, small files with known bugs, match a reported bug to a label if the line is within ±1.
+The project can grow forever, so v1.0 is the finish line. It should show real, correct engineering to recruiters.
 
-- `evals/dataset/*.py`: 4 files with 1–2 known bugs each (taken from my own buggy LeetCode attempts) + 1 clean file with no bugs.
+1. CI: GitHub Actions runs pytest on every push (Python 3.11 and 3.14). Badge in the README.
+2. Fix loop in LangGraph (roadmap stage 6, simple version): issues that were not proven (`not_reproduced`, `line_not_reached`, `test_error`, ...) go back to the reviewer with the result, so it fixes the test or drops the claim. At most 2 rounds.
+3. Experiment: can a cheap model (Haiku) plus the loop reach an expensive model (Sonnet)? Run Haiku on the eval first, to see where it fails before designing the loop.
+4. README with the results.
+
+Out of scope for v1.0 (list it in the README as possible next steps): parallel reviewers and routing (stages 4-5), posting to GitHub (stage 7), the `lines` experiment, dead code as a capability, a Docker sandbox, more dataset files.
+
+## Eval
+
 - `evals/labels.json`: `{"file.py": [{"category": "bug", "lines": [N, ...], "description": "..."}], "clean.py": []}`. A line belongs to a label if a reviewer pointing at it would be describing the same bug. Unreachable code gets a `readability` label, so a bug report on it counts as miscategorized.
-- Each file must import without crashing (no top-level prints or syntax errors).
-- Eval script: run the reviewer 3 times per file; compute **recall** and **precision**, both over all reported bugs and over `confirmed` only (the difference shows what verification is worth).
-- With 5 files, treat the numbers as direction, not proof.
+- Each dataset file must import without crashing and must have docstrings that state the contract.
+- Each file is reviewed 3 times; recall and precision at three levels: all reports, `confirmed`, `confirmed` + `crashed`.
+- `evals/results/baseline.json` is the reference run (Sonnet, prompt with "the docstring is the contract"). `--rescore` and `--reverify` work on saved runs without calling the model.
 
 ## Dataset notes
 
