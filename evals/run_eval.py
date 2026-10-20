@@ -13,10 +13,13 @@ import json
 import shutil
 import subprocess
 import tempfile
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+
+from langsmith import traceable
 
 from code_reviewer.config import MODELNAME
 from code_reviewer.pipeline import review_file
@@ -60,21 +63,37 @@ def isolated_repo(source: Path) -> Iterator[str]:
             files.PROJECT_ROOT = original_root
 
 
+@traceable(name="review case", process_inputs=lambda inputs: {"file": inputs["source"].name})
 def run_once(source: Path) -> dict:
     """Review one file in isolation. A failure is recorded, never raised."""
     record = {"file": source.name, "error": None, "issues": None}
+    start = time.perf_counter()
     try:
         with isolated_repo(source) as file_name:
-            review, verifications = review_file(file_name)
+            outcome = review_file(file_name)
     except Exception as error:
         record["error"] = f"{type(error).__name__}: {error}"
         return record
+    finally:
+        record["seconds"] = round(time.perf_counter() - start, 1)
 
+    record["tool_calls"] = outcome.tool_calls
+    record["tokens"] = outcome.tokens
     record["issues"] = [
         issue.model_dump() | {"verification": verification}
-        for issue, verification in zip(review.issues, verifications)
+        for issue, verification in zip(outcome.review.issues, outcome.verifications)
     ]
     return record
+
+
+def describe(record: dict) -> str:
+    """One progress line: time, tool calls and tokens, or the error."""
+    if record["error"]:
+        return f"failed after {record['seconds']}s: {record['error'][:120]}"
+    tools = ", ".join(f"{name}×{count}" for name, count in record["tool_calls"].items())
+    tokens = record["tokens"]
+    return (f"{record['seconds']}s, {len(record['issues'])} issues, tools: {tools or 'none'}, "
+            f"tokens: {tokens.get('input', 0)} in / {tokens.get('output', 0)} out")
 
 
 def to_run(record: dict) -> Run:
@@ -196,6 +215,33 @@ def rescore(path: Path, verify_again: bool = False) -> None:
     report(saved["model"], records, load_labels(json.loads(LABELS_PATH.read_text())))
 
 
+def save(path: Path, result: dict) -> None:
+    path.write_text(json.dumps(result, indent=2) + "\n")
+
+
+@traceable(
+    name="run_eval",
+    process_inputs=lambda inputs: {
+        "files": [source.name for source in inputs["sources"]],
+        "results_file": inputs["path"].name,
+    },
+)
+def run_all(sources: list[Path], result: dict, path: Path) -> None:
+    """Review every source RUNS times. Saves after each run, so a stopped eval keeps its work."""
+    for source in sources:
+        for run in range(1, RUNS + 1):
+            print(f"reviewing {source.name} (run {run}/{RUNS}) ... ", end="", flush=True)
+            record = run_once(source, langsmith_extra={
+                "name": f"{source.name} run {run}",
+                "metadata": {"file": source.name, "run": run, "model": MODELNAME},
+            }) | {"run": run}
+            print(describe(record), flush=True)
+            result["runs"].append(record)
+            save(path, result)
+    result["complete"] = True
+    save(path, result)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run and score the reviewer eval.")
     mode = parser.add_mutually_exclusive_group()
@@ -220,12 +266,6 @@ def main() -> None:
     labels = load_labels(raw_labels)
     sources = [DATASET_DIR / file for file in labels]
 
-    records = []
-    for source in sources:
-        for run in range(1, RUNS + 1):
-            print(f"reviewing {source.name} (run {run}/{RUNS})", flush=True)
-            records.append(run_once(source) | {"run": run})
-
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     result = {
         "timestamp": timestamp,
@@ -236,11 +276,17 @@ def main() -> None:
         "schema_sha256": sha256(json.dumps(ReviewResult.model_json_schema(), sort_keys=True)),
         "dataset_sha256": {source.name: sha256(source.read_text()) for source in sources},
         "labels": raw_labels,
-        "runs": records,
+        "complete": False,
+        "runs": [],
     }
     RESULTS_DIR.mkdir(exist_ok=True)
     path = RESULTS_DIR / f"{timestamp}.json"
-    path.write_text(json.dumps(result, indent=2) + "\n")
+
+    run_all(sources, result, path, langsmith_extra={
+        "metadata": {"model": MODELNAME, "runs_per_file": RUNS, "results_file": path.name},
+        "tags": ["eval", MODELNAME],
+    })
+    records = result["runs"]
 
     report(MODELNAME, records, labels)
     print(f"\nRaw results: {path}")

@@ -1,7 +1,13 @@
 """Tests for eval matching and metrics. Issues are built by hand; no model is called."""
 
+import json
+
+import pytest
+
 from evals import run_eval
 from evals.matching import Label, Reported, Run, score_file, total
+from code_reviewer.pipeline import ReviewRun
+from code_reviewer.schemas import ReviewResult
 from code_reviewer.tools import files
 
 BUG = Label("a.py#0", "bug", (10,))
@@ -169,3 +175,26 @@ def test_failed_run_is_recorded(monkeypatch, tmp_path):
     assert record["issues"] is None
     assert record["error"] == "RuntimeError: model returned invalid output"
     assert run_eval.to_run(record).issues is None
+
+
+def test_stopped_eval_keeps_the_runs_that_finished(monkeypatch, tmp_path):
+    calls = []
+
+    def review_then_stop(file_path):
+        calls.append(file_path)
+        if len(calls) == 2:
+            raise KeyboardInterrupt  # like pressing Ctrl+C during the second run
+        return ReviewRun(ReviewResult(issues=[]), [])
+
+    monkeypatch.setattr(run_eval, "review_file", review_then_stop)
+    source = tmp_path / "a.py"
+    source.write_text("x = 1\n")
+    path = tmp_path / "result.json"
+    result = {"complete": False, "runs": []}
+
+    with pytest.raises(KeyboardInterrupt):
+        run_eval.run_all([source], result, path)
+
+    saved = json.loads(path.read_text())
+    assert len(saved["runs"]) == 1
+    assert saved["complete"] is False
