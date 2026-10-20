@@ -3,7 +3,7 @@
   "model": "anthropic:claude-sonnet-5-5",
   "runs_per_file": 3,
   "git": {
-    "commit": "2fb9f95a67b4dcf2f19aad1f6c45ea7e90233dc3",
+    "commit": "90d7970ed8001d082f9defb013dc17e6fd2b42bd",
     "dirty": false
   },
   "prompt_sha256": "c31aa9de62ea0c8af53aa9f195b0bdd28a7e70cc395130754de85fe9a183fe68",
