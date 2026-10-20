@@ -15,8 +15,8 @@ def main() -> None:
         print(f"Error: file not found or outside the repository: {file_path}")
         sys.exit(1)
 
-    review, verifications = review_file(file_path)
-    print_review(review, verifications)
+    run = review_file(file_path)
+    print_review(run.review, run.verifications)
 
 
 if __name__ == "__main__":
