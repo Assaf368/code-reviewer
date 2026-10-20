@@ -1,10 +1,10 @@
 {
-  "timestamp": "20261020-105445",
+  "timestamp": "20261020-124456",
   "model": "anthropic:claude-sonnet-5-5",
   "runs_per_file": 3,
   "git": {
-    "commit": "755c6f3dbeb27ee394b4f3bc4cd54ca0b36b03f6",
-    "dirty": true
+    "commit": "72407ca4177a2c79499c37aeb985cb1f1cf5d998",
+    "dirty": false
   },
   "prompt_sha256": "9bd96e558359eeffebc043fe52ffc31ac05a7729cfeec1d67070a5ed9574e1a5",
   "schema_sha256": "20497e3f6727a7586be8d66c7ca2314dfd927420a5dfe665f58b53a332b25e0e",
@@ -13,7 +13,9 @@
     "three_sum.py": "bbfc4219aac8163218b4a6ca4bd94aced50d796b2163e4e3737418b9e5075429",
     "palindrome.py": "262aa5cda398b9daae448d698ff99cf742adfb2fb61726671bb35189f7ae1113",
     "product_except_self.py": "509ca877a2eed27aaa0d7d3297e4f81f42fb4b535b12786597504b62257a7407",
-    "two_sum.py": "ee3ea20aa3adcffc2c9e07d78091e1005444a002143e5637eba968326e4fdea0"
+    "two_sum.py": "ee3ea20aa3adcffc2c9e07d78091e1005444a002143e5637eba968326e4fdea0",
+    "user_utils.py": "cbac8949f08a39e678c37e188394246cc77823b18c58e30b520c94c516b28611",
+    "store.py": "8613a60497404bde352fa403a2d4db27d637a3a7141b1f708782893649aa0a4f"
   },
   "labels": {
     "max_area.py": [
@@ -38,10 +40,16 @@
       {
         "category": "bug",
         "lines": [
-          16,
+          16
+        ],
+        "description": "When the left pointer meets the right one while skipping non-alphanumeric characters, the function returns False instead of True. is_palindrome('a,,a') and is_palindrome(',,,') return False."
+      },
+      {
+        "category": "readability",
+        "lines": [
           22
         ],
-        "description": "When the pointers meet while skipping non-alphanumeric characters, the function returns False instead of True. is_palindrome('a,,a') and is_palindrome(',,,') return False."
+        "description": "Dead code: the right skip loop always stops on the character the left pointer already found, so this return False can never run. Unreachable for every string up to length 8 over 'a', 'b', ','."
       }
     ],
     "product_except_self.py": [
@@ -64,8 +72,76 @@
         "description": "The skip condition checks i == len(nums), which is never true, so the first iteration reads right_reuslts[len(nums)] and raises IndexError. Should be i == len(nums) - 1."
       }
     ],
-    "two_sum.py": []
+    "two_sum.py": [],
+    "user_utils.py": [
+      {
+        "category": "readability",
+        "lines": [
+          32
+        ],
+        "description": "not (flags ^ flags) is always True, so the second condition does nothing. The function is still correct: it returns bool(flags & 8)."
+      }
+    ],
+    "store.py": [
+      {
+        "category": "bug",
+        "lines": [
+          169,
+          171,
+          174,
+          180
+        ],
+        "description": "process_payment records raw_subtotal (before discount and tax) as charged_amount instead of total_amount. With 1 Laptop and SUMMER10 the record says 1200.0 instead of 1263.6."
+      },
+      {
+        "category": "bug",
+        "lines": [
+          68,
+          123,
+          126,
+          175
+        ],
+        "description": "validate_cart checks stock per entry, not per item total. Two entries of item_01 with quantity 6 pass with stock 10; the second deduct_stock then does nothing, so 12 are sold and stock ends at 4."
+      },
+      {
+        "category": "bug",
+        "lines": [
+          14,
+          142,
+          144
+        ],
+        "description": "calculate_total ignores the ENABLE_DISCOUNTS setting. With it set to False, SUMMER10 still gives 1263.6 for 1 Laptop instead of 1404.0."
+      }
+    ]
   },
+  "merged_from": [
+    {
+      "timestamp": "20261020-105445",
+      "git": {
+        "commit": "755c6f3dbeb27ee394b4f3bc4cd54ca0b36b03f6",
+        "dirty": true
+      },
+      "files": [
+        "max_area.py",
+        "three_sum.py",
+        "palindrome.py",
+        "product_except_self.py",
+        "two_sum.py"
+      ],
+      "note": "statuses re-verified with line_not_reached"
+    },
+    {
+      "timestamp": "20261020-124456",
+      "git": {
+        "commit": "72407ca4177a2c79499c37aeb985cb1f1cf5d998",
+        "dirty": false
+      },
+      "files": [
+        "user_utils.py",
+        "store.py"
+      ]
+    }
+  ],
   "runs": [
     {
       "file": "max_area.py",
@@ -298,7 +374,7 @@
           "fix": "Use the bounded skip loops described above.",
           "test_code": "assert is_palindrome(\"ab,,ba\") is True, is_palindrome(\"ab,,ba\")",
           "untestable_reason": null,
-          "verification": "confirmed"
+          "verification": "line_not_reached"
         }
       ],
       "run": 2
@@ -348,7 +424,7 @@
           "fix": "Loop `for i in range(len(nums)-2, -1, -1)` with right initialized to 1s, and drop the bogus guard.",
           "test_code": "assert product_except_self([2,3]) == [3,2]",
           "untestable_reason": null,
-          "verification": "crashed"
+          "verification": "line_not_reached"
         },
         {
           "line": 7,
@@ -391,7 +467,7 @@
           "fix": "Loop `for i in range(len(nums) - 2, -1, -1)` and drop the dead check. Keep `right[n-1] = 1`.",
           "test_code": "assert product_except_self([2, 3]) == [3, 2], product_except_self([2, 3])",
           "untestable_reason": null,
-          "verification": "crashed"
+          "verification": "line_not_reached"
         },
         {
           "line": 7,
@@ -434,7 +510,7 @@
           "fix": "Use `for i in range(len(nums) - 2, -1, -1):` and remove the dead guard.",
           "test_code": "assert product_except_self([2, 3]) == [3, 2], product_except_self([2, 3])",
           "untestable_reason": null,
-          "verification": "crashed"
+          "verification": "line_not_reached"
         },
         {
           "line": 7,
@@ -501,6 +577,264 @@
           "explanation": "`registerInDict` and `getIndex` use `dict` as a parameter name, and `two_sum` uses it as a local variable. This shadows the builtin type. The two helpers only wrap a plain dict assignment and lookup, so they add indirection without adding clarity. The names also use camelCase, which is not PEP 8. The algorithm itself is correct. I found no input where it returns a wrong result.",
           "example": null,
           "fix": "Remove the helpers and use a dict named `seen`. Write `if value in seen: return [seen[value], i]` and `seen[x] = i`.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 3
+    },
+    {
+      "file": "user_utils.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 32,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Redundant always-true condition `not (flags ^ flags)`",
+          "explanation": "`flags ^ flags` is always 0, so `not (flags ^ flags)` is always True. The check does nothing and suggests a validity test that doesn't exist. The function only tests bit 3, and the name `is_valid` hides that.",
+          "example": null,
+          "fix": "Use `return bool(flags & (1 << 3))`, or implement the validity check that was intended.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 1
+    },
+    {
+      "file": "user_utils.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 32,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Redundant `not (flags ^ flags)` clause is always True",
+          "explanation": "`flags ^ flags` is always 0, so `not 0` is always True. The clause does nothing, and it suggests a different check was intended, which confuses readers. The function reduces to testing bit 3.",
+          "example": null,
+          "fix": "Use `return bool(flags & (1 << 3))`, or fix the condition if a different check was intended.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 2
+    },
+    {
+      "file": "user_utils.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 32,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Redundant always-true condition `not (flags ^ flags)`",
+          "explanation": "`flags ^ flags` is always 0, so `not (flags ^ flags)` is always True. It does nothing and suggests a check that isn't there. The function only tests bit 3, as its docstring says. The extra term misleads readers and may hide a half-finished validity check.",
+          "example": null,
+          "fix": "Remove the dead term and return `bool(flags & (1 << 3))` directly.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 3
+    },
+    {
+      "file": "store.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 123,
+          "category": "bug",
+          "severity": "critical",
+          "title": "validate_cart checks each entry on its own, so duplicate item_ids can oversell",
+          "explanation": "The docstring says stock must cover the total quantity requested for each item. The loop checks each entry against stock separately. Two entries for the same item can each pass even though together they exceed stock. process_payment then calls deduct_stock for each entry. The second deduction is silently skipped because deduct_stock does nothing when stock is short. The customer is charged for the full quantity but only part of it is deducted from stock.",
+          "example": "item_01 has stock 10. The cart [{item_id: item_01, quantity: 8}, {item_id: item_01, quantity: 8}] is accepted as valid.",
+          "fix": "Sum quantities per item_id first (for example with a Counter), then check stock against each total. Also reject entries whose item_id does not exist.",
+          "test_code": "inv = InventoryService(); sm = SessionManager(); p = PaymentProcessor(sm, inv)\nitems = [{\"item_id\": \"item_01\", \"quantity\": 8}, {\"item_id\": \"item_01\", \"quantity\": 8}]\nassert p.validate_cart(items) is False, p.validate_cart(items)",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 142,
+          "category": "bug",
+          "severity": "major",
+          "title": "calculate_total ignores the ENABLE_DISCOUNTS setting",
+          "explanation": "The docstring says a discount code applies only when ENABLE_DISCOUNTS is on. The code never reads that setting, so discounts are applied even when it is switched off.",
+          "example": "After ConfigurationRegistry.set('ENABLE_DISCOUNTS', False), calculate_total([{'item_id':'item_02','quantity':1}], 'SUMMER10') returns 26.32 instead of 29.25. (The no-discount price is 25 * 1.17 = 29.25.)",
+          "fix": "Wrap the discount block in `if ConfigurationRegistry.get('ENABLE_DISCOUNTS', True):`.",
+          "test_code": "ConfigurationRegistry.set('ENABLE_DISCOUNTS', False)\ntry:\n    p = PaymentProcessor(SessionManager(), InventoryService())\n    r = p.calculate_total([{'item_id':'item_02','quantity':1}], 'SUMMER10')\n    assert r == 29.25, r\nfinally:\n    ConfigurationRegistry.set('ENABLE_DISCOUNTS', True)",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 180,
+          "category": "bug",
+          "severity": "critical",
+          "title": "charged_amount records the raw subtotal instead of the amount charged",
+          "explanation": "The docstring says charged_amount is the value returned by calculate_total. The code stores raw_subtotal, which has no discount and no tax. The computed total_amount is never used. Transaction history and AuditService.verify_user_totals therefore report wrong figures.",
+          "example": "Buy 1 Mouse (25.0) with SUMMER10. calculate_total returns 26.32, but charged_amount is 25.0.",
+          "fix": "Store `\"charged_amount\": total_amount` and remove the redundant raw_subtotal calculation.",
+          "test_code": "inv = InventoryService(); sm = SessionManager(); p = PaymentProcessor(sm, inv)\ns = sm.create_session('u')\nitems = [{'item_id':'item_02','quantity':1}]\nexpected = p.calculate_total(items, 'SUMMER10')\nassert p.process_payment(s, items, 'SUMMER10')\nassert p.transaction_history[0]['charged_amount'] == expected, p.transaction_history[0]['charged_amount']",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 36,
+          "category": "bug",
+          "severity": "minor",
+          "title": "User id derived from hash(username) is not unique or stable across runs",
+          "explanation": "Python randomizes string hashes per process, so ids change between runs and cannot be persisted. Different usernames can also collide, and the second user would silently overwrite the first. abs() makes the collision space slightly smaller.",
+          "example": "Run the program twice: register_user('alice', ...) returns a different id each time.",
+          "fix": "Use a uuid or a counter for the id, or a stable digest such as hashlib.sha256(username.encode()).hexdigest().",
+          "test_code": null,
+          "untestable_reason": "The hash differs between processes, and a real collision cannot be constructed deterministically in a single-process test.",
+          "verification": "unverified"
+        },
+        {
+          "line": 41,
+          "category": "readability",
+          "severity": "minor",
+          "title": "datetime.utcnow() is deprecated",
+          "explanation": "utcnow() is deprecated since Python 3.12 and returns a naive datetime. The same call appears at lines 89 and 182.",
+          "example": null,
+          "fix": "Use datetime.datetime.now(datetime.timezone.utc).isoformat().",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 1
+    },
+    {
+      "file": "store.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 123,
+          "category": "bug",
+          "severity": "critical",
+          "title": "validate_cart checks each entry separately, so duplicate item_ids can oversell",
+          "explanation": "The docstring says stock must cover the total quantity requested for each item. Each entry is checked against stock on its own. A cart with two entries for the same item can pass even though their combined quantity exceeds stock. process_payment then calls deduct_stock for each entry. The second deduction is silently skipped when stock is short. The customer is charged for the full quantity but stock is only partly deducted.",
+          "example": "items=[{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}] with stock 10 returns True.",
+          "fix": "Sum quantities per item_id first, then check stock against each total.",
+          "test_code": "inv=InventoryService();sm=SessionManager();p=PaymentProcessor(sm,inv)\nr=p.validate_cart([{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}])\nassert r is False, r",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 142,
+          "category": "bug",
+          "severity": "major",
+          "title": "ENABLE_DISCOUNTS setting is ignored in calculate_total",
+          "explanation": "The docstring says discount codes apply only when ENABLE_DISCOUNTS is on. The code never reads that setting, so discounts are applied even when they are disabled.",
+          "example": "ConfigurationRegistry.set('ENABLE_DISCOUNTS', False); calculate_total([{'item_id':'item_02','quantity':2}], 'SUMMER10') returns 52.65 instead of 58.5.",
+          "fix": "Wrap the discount branch in `if ConfigurationRegistry.get('ENABLE_DISCOUNTS', True):`.",
+          "test_code": "inv=InventoryService();sm=SessionManager();p=PaymentProcessor(sm,inv)\nConfigurationRegistry.set('ENABLE_DISCOUNTS', False)\nr=p.calculate_total([{'item_id':'item_02','quantity':2}],'SUMMER10')\nConfigurationRegistry.set('ENABLE_DISCOUNTS', True)\nassert r == 58.5, r",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 180,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Transaction records the raw subtotal instead of the amount charged",
+          "explanation": "charged_amount is set to raw_subtotal, which has no discount and no tax. The docstring says it must be the value returned by calculate_total. The computed total_amount is never used. As a result, AuditService.verify_user_totals returns wrong sums.",
+          "example": "Paying for 2 mice (item_02) with SUMMER10 records 50.0, but calculate_total returns 52.65.",
+          "fix": "Use \"charged_amount\": total_amount and remove the raw_subtotal accumulation.",
+          "test_code": "inv=InventoryService();sm=SessionManager();p=PaymentProcessor(sm,inv)\ns=sm.create_session('u')\nitems=[{'item_id':'item_02','quantity':2}]\nexpected=p.calculate_total(items,'SUMMER10')\nassert p.process_payment(s,items,'SUMMER10')\nassert p.transaction_history[0]['charged_amount']==expected, p.transaction_history[0]['charged_amount']",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 36,
+          "category": "bug",
+          "severity": "minor",
+          "title": "User id is derived from hash(), so different usernames can collide and replace each other",
+          "explanation": "hash() is randomized per process, and abs(hash()) can collide in principle. A collision silently overwrites another user. The id is also not stable across restarts. The docstring only promises stability within one process.",
+          "example": null,
+          "fix": "Use a counter or uuid, or key the dict by username directly.",
+          "test_code": null,
+          "untestable_reason": "A hash collision cannot be constructed deterministically because hash randomization differs per process.",
+          "verification": "unverified"
+        },
+        {
+          "line": 41,
+          "category": "readability",
+          "severity": "minor",
+          "title": "datetime.utcnow() is deprecated",
+          "explanation": "utcnow() returns a naive datetime and is deprecated since Python 3.12. It emits DeprecationWarnings, as seen when running the file.",
+          "example": null,
+          "fix": "Use datetime.datetime.now(datetime.timezone.utc).isoformat().",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "run": 2
+    },
+    {
+      "file": "store.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 123,
+          "category": "bug",
+          "severity": "critical",
+          "title": "validate_cart checks each entry separately instead of the total per item",
+          "explanation": "The docstring says stock must cover the total quantity requested for each item_id. The loop checks each entry alone, so a cart that repeats an item can pass validation even when the combined quantity is more than the stock. deduct_stock then silently skips the entry that doesn't fit. The payment still succeeds and the customer is charged for goods that were never deducted from stock.",
+          "example": "Stock of item_01 is 10. The cart [{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}] returns True.",
+          "fix": "Sum the quantities per item_id first, then check stock against each total.",
+          "test_code": "inv = InventoryService(); sm = SessionManager(); p = PaymentProcessor(sm, inv)\nr = p.validate_cart([{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}])\nassert r is False, r",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 142,
+          "category": "bug",
+          "severity": "major",
+          "title": "ENABLE_DISCOUNTS setting is ignored",
+          "explanation": "The docstring says discount codes apply only when ENABLE_DISCOUNTS is on. calculate_total never reads the setting, so discounts are applied even when they are disabled.",
+          "example": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False); calculate_total([{\"item_id\":\"item_02\",\"quantity\":1}], \"SUMMER10\") returns 26.32 instead of 29.25.",
+          "fix": "Wrap the discount branches in `if ConfigurationRegistry.get(\"ENABLE_DISCOUNTS\", True):`.",
+          "test_code": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False)\ntry:\n    p = PaymentProcessor(SessionManager(), InventoryService())\n    t = p.calculate_total([{\"item_id\":\"item_02\",\"quantity\":1}], \"SUMMER10\")\n    assert t == round(25.0*1.17, 2), t\nfinally:\n    ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", True)",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 180,
+          "category": "bug",
+          "severity": "critical",
+          "title": "charged_amount records the raw subtotal, not the amount charged",
+          "explanation": "The docstring says charged_amount is the value returned by calculate_total, which includes the discount and tax. The code stores raw_subtotal, which has neither. The transaction history and AuditService.verify_user_totals therefore report the wrong totals.",
+          "example": "One Mouse (25.0) with SUMMER10 is charged 26.32, but the record stores 25.0.",
+          "fix": "Use total_amount for charged_amount. Remove the separate raw_subtotal computation.",
+          "test_code": "p = PaymentProcessor(SessionManager(), InventoryService())\ns = p.session_mgr.create_session(\"u\")\nitems = [{\"item_id\":\"item_02\",\"quantity\":1}]\nexpected = p.calculate_total(items, \"SUMMER10\")\nassert p.process_payment(s, items, \"SUMMER10\")\nassert p.transaction_history[0][\"charged_amount\"] == expected, p.transaction_history[0][\"charged_amount\"]",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 36,
+          "category": "bug",
+          "severity": "minor",
+          "title": "User id derived from hash(username) can collide, and changes between runs",
+          "explanation": "The built-in hash() of a string is randomized per process, so ids are not persistent. Two usernames can collide, in which case one silently overwrites the other. Re-registering the same username replaces the user, which the docstring documents.",
+          "example": null,
+          "fix": "Use a uuid, a counter, or a stable digest such as sha256 of the username.",
+          "test_code": null,
+          "untestable_reason": "A collision cannot be constructed deterministically, and the cross-process instability needs separate processes.",
+          "verification": "unverified"
+        },
+        {
+          "line": 41,
+          "category": "readability",
+          "severity": "minor",
+          "title": "datetime.utcnow() is deprecated",
+          "explanation": "utcnow() returns a naive datetime and is deprecated since Python 3.12. It also emits a DeprecationWarning on every call.",
+          "example": null,
+          "fix": "Use datetime.datetime.now(datetime.timezone.utc).",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
