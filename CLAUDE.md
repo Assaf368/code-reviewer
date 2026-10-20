@@ -58,6 +58,8 @@ Verification statuses: `confirmed`, `not_reproduced`, `crashed`, `inconclusive`,
 ## Known risks still open
 
 - The assert itself may encode a wrong assumption about correct behavior (a failing assert ≠ a real bug).
+- A failing test does not prove the reported mechanism. Seen in the eval: a bug reported on unreachable palindrome.py:22 came out `confirmed` because its input failed on line 16. Planned: a `line_not_reached` status (record executed lines with sys.settrace in the RUNNER). A line not reached by one test is not proof of dead code, so the status says only that the confirmation does not belong to the claim.
+- Dead code as a reviewer capability (minor severity): a separate experiment, after the lines experiment, one variable at a time.
 - The model may not understand what undocumented code is supposed to do. Idea: an `intended_behavior` field so the assumption is visible.
 - Idea: check each test against the suggested fix (it should fail on the original and pass on the fix).
 - Results vary between runs (e.g. the O(n²) performance issue appears in some runs and not others). Only evals with repeated runs can tell.
@@ -71,7 +73,7 @@ Verification statuses: `confirmed`, `not_reproduced`, `crashed`, `inconclusive`,
 Scope: **bugs only**, small files with known bugs, match a reported bug to a label if the line is within ±1.
 
 - `evals/dataset/*.py`: 4 files with 1–2 known bugs each (taken from my own buggy LeetCode attempts) + 1 clean file with no bugs.
-- `evals/labels.json`: `{"file.py": [{"category": "bug", "lines": [N, ...], "description": "..."}], "clean.py": []}`. A line belongs to a label if a reviewer pointing at it would be describing the same bug.
+- `evals/labels.json`: `{"file.py": [{"category": "bug", "lines": [N, ...], "description": "..."}], "clean.py": []}`. A line belongs to a label if a reviewer pointing at it would be describing the same bug. Unreachable code gets a `readability` label, so a bug report on it counts as miscategorized.
 - Each file must import without crashing (no top-level prints or syntax errors).
 - Eval script: run the reviewer 3 times per file; compute **recall** and **precision**, both over all reported bugs and over `confirmed` only (the difference shows what verification is worth).
 - With 5 files, treat the numbers as direction, not proof.

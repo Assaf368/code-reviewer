@@ -21,10 +21,16 @@
     {
       "category": "bug",
       "lines": [
-        16,
+        16
+      ],
+      "description": "When the left pointer meets the right one while skipping non-alphanumeric characters, the function returns False instead of True. is_palindrome('a,,a') and is_palindrome(',,,') return False."
+    },
+    {
+      "category": "readability",
+      "lines": [
         22
       ],
-      "description": "When the pointers meet while skipping non-alphanumeric characters, the function returns False instead of True. is_palindrome('a,,a') and is_palindrome(',,,') return False."
+      "description": "Dead code: the right skip loop always stops on the character the left pointer already found, so this return False can never run. Unreachable for every string up to length 8 over 'a', 'b', ','."
     }
   ],
   "product_except_self.py": [

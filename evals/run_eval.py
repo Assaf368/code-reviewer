@@ -1,12 +1,15 @@
 """Run the reviewer on the eval dataset and score it against labels.json.
 
-Usage: python -m evals.run_eval
+Usage:
+    python -m evals.run_eval                    # run the reviewer, save and score
+    python -m evals.run_eval --rescore <json>   # score saved runs against current labels
 """
 
 import hashlib
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -142,7 +145,35 @@ def print_details(scores: list[FileScore], failures: list[dict]) -> None:
         print(f"failed run: {record['file']}: {record['error']}")
 
 
+def report(model: str, records: list[dict], labels: dict[str, list[Label]]) -> None:
+    scores = [
+        score_file(file, [to_run(r) for r in records if r["file"] == file], file_labels)
+        for file, file_labels in labels.items()
+    ]
+
+    print(f"\nModel: {model}   Runs per file: {RUNS}")
+    print("Note: docstrings in the dataset hint at some bugs, so recall is optimistic.\n")
+    print_table(scores + [total(scores)])
+    print()
+    print_labels(labels, scores)
+    print()
+    print_details(scores, [r for r in records if r["issues"] is None])
+
+
+def rescore(path: Path) -> None:
+    """Score saved runs against the current labels, without calling the model."""
+    saved = json.loads(path.read_text())
+    for file, digest in saved["dataset_sha256"].items():
+        if sha256((DATASET_DIR / file).read_text()) != digest:
+            print(f"Warning: {file} changed since this run; label lines may not match.")
+    report(saved["model"], saved["runs"], load_labels(json.loads(LABELS_PATH.read_text())))
+
+
 def main() -> None:
+    if len(sys.argv) == 3 and sys.argv[1] == "--rescore":
+        rescore(Path(sys.argv[2]))
+        return
+
     raw_labels = json.loads(LABELS_PATH.read_text())
     labels = load_labels(raw_labels)
     sources = [DATASET_DIR / file for file in labels]
@@ -169,19 +200,7 @@ def main() -> None:
     path = RESULTS_DIR / f"{timestamp}.json"
     path.write_text(json.dumps(result, indent=2) + "\n")
 
-    scores = [
-        score_file(file, [to_run(r) for r in records if r["file"] == file], file_labels)
-        for file, file_labels in labels.items()
-    ]
-
-    print(f"\nModel: {MODELNAME}   Runs per file: {RUNS}")
-    print("Note: docstrings in the dataset hint at some bugs, so recall is optimistic.\n")
-    print_table(scores + [total(scores)])
-    print()
-    print_labels(labels, scores)
-    print()
-    print_details(scores, [r for r in records if r["issues"] is None])
-
+    report(MODELNAME, records, labels)
     print(f"\nRaw results: {path}")
 
 

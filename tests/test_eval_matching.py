@@ -85,6 +85,22 @@ def test_bug_issue_on_a_performance_line_is_only_miscategorized():
     assert result.levels["all"].false_positives == 0
 
 
+def test_bug_report_on_dead_code_is_miscategorized_not_a_false_positive():
+    # palindrome.py line 22: unreachable code the model reported as a bug.
+    dead = Label("a.py#1", "readability", (22,))
+    result = score([bug(16), bug(22)], [Label("a.py#0", "bug", (16,)), dead])
+    assert [issue.line for issue in result.miscategorized] == [22]
+    assert result.levels["all"].false_positives == 0
+    assert result.levels["all"].precision == 1
+
+
+def test_readability_label_is_tracked_but_not_scored():
+    dead = Label("a.py#1", "readability", (22,))
+    result = score([Reported(22, "readability", "not_tested")], [BUG, dead])
+    assert result.label_hits["a.py#1"] == [["not_tested"]]
+    assert result.levels["all"].expected == 1  # only the bug label is scored
+
+
 def test_readability_issue_away_from_labels_is_counted_as_other():
     result = score([Reported(30, "readability", "not_tested")])
     assert result.other == 1

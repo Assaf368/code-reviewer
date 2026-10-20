@@ -8,7 +8,6 @@ LEVELS = {
     "confirmed": {"confirmed"},
     "confirmed+crashed": {"confirmed", "crashed"},
 }
-LABELED_CATEGORIES = ("bug", "performance")
 
 
 @dataclass(frozen=True)
