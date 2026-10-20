@@ -60,13 +60,15 @@ Verification statuses: `confirmed`, `not_reproduced`, `crashed`, `inconclusive`,
 - The assert itself may encode a wrong assumption about correct behavior (a failing assert ≠ a real bug).
 - A failing test does not prove the reported mechanism. Seen in the eval: a bug reported on unreachable palindrome.py:22 came out `confirmed` because its input failed on line 16. Now handled: the RUNNER records executed lines (sys.settrace), and a failure whose reported line never ran becomes `line_not_reached`. A line with code must run exactly (±1 would accept a dead `return` under a live `if`); a line without code (`else:`, comment) counts if a neighbor ran. It does not prove dead code, only that the confirmation does not belong to the claim. It still cannot catch a wrong explanation on a line that did run.
 - Dead code as a reviewer capability (minor severity): a separate experiment, after the lines experiment, one variable at a time.
-- The model may not understand what undocumented code is supposed to do. Idea: an `intended_behavior` field so the assumption is visible.
+- The model may not understand what undocumented code is supposed to do. Idea: an `intended_behavior` field so the assumption is visible. Better idea (deferred): let the reviewer ask specific questions when unsure ("may nums be modified?") instead of guessing. In an eval nobody answers, so score whether it asked about the right things. A no-docstring run is a hint of how well it infers intent, not something to blame the model for.
 - Idea: check each test against the suggested fix (it should fail on the original and pass on the fix).
 - Results vary between runs (e.g. the O(n²) performance issue appears in some runs and not others). Only evals with repeated runs can tell.
 - `run_python` executes model-written code locally. Production would need a Docker sandbox.
 - The runner copies one file only, so files importing other project modules fail with `source_error`.
 - `run_python` can open absolute paths, so eval isolation blocks `read_file` but not a determined model.
 - Next experiment: change Issue.line to lines: list[int] (one report per bug). Compare to the eval baseline: duplicates should drop, recall should not.
+  Definition of one bug, written the same way in the prompt and in the labels: if fixing one place leaves the other still broken, they are two bugs (e.g. the same mistake copied into two loops). If all places must change together, it is one bug with several lines. A broken function called from two places is one bug, on the function's line.
+  Needs a dataset file where one bug really spans several lines that all run; the current dataset has 0 duplicates.
 
 ## Current task: first eval dataset
 
