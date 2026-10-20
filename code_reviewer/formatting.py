@@ -8,6 +8,7 @@ SEVERITY_ORDER = {"critical": 0, "major": 1, "minor": 2}
 MARKS = {
     "confirmed": " ✓ confirmed",
     "not_reproduced": " ✗ not reproduced",
+    "crashed": " ! crashes",
     "inconclusive": " ? inconclusive",
     "test_error": " ⚠ broken test",
     "source_error": " ⚠ file failed to load",
@@ -22,6 +23,7 @@ def build_summary(verifications: list[Verification]) -> str:
     bugs = len(verifications) - counts["not_tested"]
     return (
         f"{counts['confirmed']} of {bugs} reported bugs confirmed, "
+        f"{counts['crashed']} crashed, "
         f"{counts['not_reproduced']} not reproduced, "
         f"{counts['unverified']} need a manual check, "
         f"{counts['not_tested']} other issues."

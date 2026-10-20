@@ -1,0 +1,51 @@
+{
+  "max_area.py": [
+    {
+      "category": "bug",
+      "lines": [
+        31
+      ],
+      "description": "After moving left, compares nums[left] to nums[right - 1] instead of nums[left - 1], so a taller left line is skipped. max_area([1, 5, 10, 6]) returns 3 instead of 10."
+    }
+  ],
+  "three_sum.py": [
+    {
+      "category": "bug",
+      "lines": [
+        18
+      ],
+      "description": "After finding a triplet, left is not advanced past equal values, so the same triplet is added twice. three_sum([-2, 0, 0, 2, 2], 0) returns [[0, 2, -2], [0, 2, -2]]."
+    }
+  ],
+  "palindrome.py": [
+    {
+      "category": "bug",
+      "lines": [
+        16,
+        22
+      ],
+      "description": "When the pointers meet while skipping non-alphanumeric characters, the function returns False instead of True. is_palindrome('a,,a') and is_palindrome(',,,') return False."
+    }
+  ],
+  "product_except_self.py": [
+    {
+      "category": "bug",
+      "lines": [
+        6,
+        7,
+        8,
+        13
+      ],
+      "description": "[] * len(nums) creates empty lists, so the first index assignment raises IndexError. Should be [1] * len(nums)."
+    },
+    {
+      "category": "bug",
+      "lines": [
+        16,
+        19
+      ],
+      "description": "The skip condition checks i == len(nums), which is never true, so the first iteration reads right_reuslts[len(nums)] and raises IndexError. Should be i == len(nums) - 1."
+    }
+  ],
+  "two_sum.py": []
+}

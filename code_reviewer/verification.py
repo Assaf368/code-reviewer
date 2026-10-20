@@ -13,6 +13,7 @@ from code_reviewer.tools.execution import (
 Verification = Literal[
     "confirmed",
     "not_reproduced",
+    "crashed",
     "inconclusive",
     "test_error",
     "source_error",
@@ -39,6 +40,8 @@ def verify_issue(source: str, issue: Issue) -> Verification:
         return "not_reproduced"
     if result.exit_code == SOURCE_FAILED_TO_LOAD:
         return "source_error"
-    if result.exit_code in (SOURCE_ASSERTION_FAILED, SOURCE_RAISED):
+    if result.exit_code == SOURCE_RAISED:
+        return "crashed"
+    if result.exit_code == SOURCE_ASSERTION_FAILED:
         return "inconclusive"
     return "test_error"

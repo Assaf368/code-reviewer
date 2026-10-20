@@ -55,9 +55,10 @@ def test_assert_inside_source_is_inconclusive():
     assert verify_issue(source, bug("assert f(-1) == -1")) == "inconclusive"
 
 
-def test_exception_inside_source_is_inconclusive():
+def test_exception_inside_source_is_crashed():
+    # The reviewed code raises a non-assert exception: a crash is usually the bug itself.
     source = "def first(items):\n    return items[0]\n"
-    assert verify_issue(source, bug("assert first([]) is None")) == "inconclusive"
+    assert verify_issue(source, bug("assert first([]) is None")) == "crashed"
 
 
 def test_source_that_fails_to_load():

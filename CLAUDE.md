@@ -25,7 +25,8 @@ pytest
 
 ```
 code_reviewer/
-├── __main__.py      # CLI: check file exists → run agent → verify each issue → print
+├── __main__.py      # CLI: check file exists → review_file() → print
+├── pipeline.py      # review_file(): run agent → verify each issue (shared by CLI and evals)
 ├── config.py        # MODEL_NAME from env (REVIEWER_MODEL)
 ├── prompts.py       # REVIEWER_SYSTEM_PROMPT
 ├── schemas.py       # Issue, ReviewResult (Pydantic; the model sees field descriptions)
@@ -52,7 +53,7 @@ Tracing: LangSmith, EU endpoint, configured only through `.env` (`LANGSMITH_PROJ
 6. **The schema lets the model say "can't test".** `untestable_reason` exists so the model doesn't invent fake tests for bugs that need a network, DB, other files, timing, or concurrency.
 7. **The test runner** imports the reviewed file as module `target` and runs the test in a separate namespace with only the target's names (a previous version leaked the runner's own variables and broke files that defined `f`, `test`, or `sys`). The failing frame decides the exit code.
 
-Verification statuses: `confirmed`, `not_reproduced`, `inconclusive`, `test_error`, `source_error`, `unverified`, `missing_test`, `not_tested`.
+Verification statuses: `confirmed`, `not_reproduced`, `crashed`, `inconclusive`, `test_error`, `source_error`, `unverified`, `missing_test`, `not_tested`.
 
 ## Known risks still open
 
@@ -62,13 +63,15 @@ Verification statuses: `confirmed`, `not_reproduced`, `inconclusive`, `test_erro
 - Results vary between runs (e.g. the O(n²) performance issue appears in some runs and not others). Only evals with repeated runs can tell.
 - `run_python` executes model-written code locally. Production would need a Docker sandbox.
 - The runner copies one file only, so files importing other project modules fail with `source_error`.
+- `run_python` can open absolute paths, so eval isolation blocks `read_file` but not a determined model.
+- Next experiment: change Issue.line to lines: list[int] (one report per bug). Compare to the eval baseline: duplicates should drop, recall should not.
 
 ## Current task: first eval dataset
 
 Scope: **bugs only**, small files with known bugs, match a reported bug to a label if the line is within ±1.
 
 - `evals/dataset/*.py`: 4 files with 1–2 known bugs each (taken from my own buggy LeetCode attempts) + 1 clean file with no bugs.
-- `evals/labels.json`: `{"file.py": [{"line": N, "description": "..."}], "clean.py": []}`.
+- `evals/labels.json`: `{"file.py": [{"category": "bug", "lines": [N, ...], "description": "..."}], "clean.py": []}`. A line belongs to a label if a reviewer pointing at it would be describing the same bug.
 - Each file must import without crashing (no top-level prints or syntax errors).
 - Eval script: run the reviewer 3 times per file; compute **recall** and **precision**, both over all reported bugs and over `confirmed` only (the difference shows what verification is worth).
 - With 5 files, treat the numbers as direction, not proof.
