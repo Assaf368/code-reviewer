@@ -6,6 +6,8 @@ An AI code review agent built with [LangChain](https://docs.langchain.com). It r
 
 Every reported bug also comes with an assert-based test. The model writes the test, but the project's own code runs it and decides whether the bug is real. A bug that is not proven by its test is shown as unproven.
 
+When the code does not say what it is supposed to do, the reviewer can pause and ask the user, then continue the review with the answer.
+
 The project is built in stages, starting from a single agent and growing into a multi-agent system orchestrated with LangGraph.
 
 ## Example output
@@ -51,11 +53,29 @@ Diagrams of the whole flow (review, verification, eval) are in [docs/pipeline.md
 
 `line_not_reached` uses `sys.settrace` to record which lines of the reviewed file ran. It was added after the eval showed a test that "confirmed" a bug on unreachable code: the test failed, but because of a different line.
 
+## Asking about intended behavior
+
+Some bugs are bugs only if you know what the code was meant to do. A tax function that charges VIP customers 17% and everyone else 10% is either correct or backwards, and nothing in the code says which.
+
+The reviewer has an `ask_user` tool for this. It pauses the agent with a LangGraph `interrupt`, the question is answered, and the agent continues from the same point, so it can run the code again with the answer in mind. It can ask at most twice per review, with several questions per round. In the terminal you answer the questions yourself (`--no-questions` turns this off):
+
+```
+The reviewer has questions about the intended behavior:
+  1. Should VIP customers pay a higher tax rate (17%) than regular customers (10%), or is that reversed?
+     > It is reversed. VIP customers should pay 10% and regular customers 17%.
+
+1 of 1 reported bugs confirmed, 0 crashed, 0 not reproduced, 0 need a manual check, 0 other issues.
+
+[CRITICAL] line 6 · bug · Tax rates are swapped for VIP and regular customers ✓ confirmed
+```
+
+In the eval, a simulated user (Claude Haiku) answers. It knows the intended behavior from [`evals/questions.json`](evals/questions.json) but never whether the code is right, answers only what is asked, and says "I have no requirement about that" to anything else. Every question and answer is printed so leaks are easy to spot.
+
 ## Evaluation
 
 The eval runs the real pipeline on a labeled dataset and compares the reported bugs to the labels.
 
-- **Dataset:** 7 files in [`evals/dataset`](evals/dataset). Five short algorithm files (four with known bugs, one clean), one file of traps (correct code that looks wrong), and one 200-line file with three bugs. 8 labeled bugs in total.
+- **Dataset:** 16 files in [`evals/dataset`](evals/dataset) with 15 labeled bugs: short algorithm files, a 200-line file with three bugs, files with traps (correct code that looks wrong), and files whose contract is explicit, implied, ambiguous or missing. Half of the unclear ones are correct code, so guessing "bug" does not pay.
 - **Isolation:** each run copies one file into an empty temp directory, so the agent cannot read the labels or other files.
 - **Matching:** a reported bug matches a label if the category is the same and the line is within one of a labeled line.
 - **Three levels:** all reported bugs, only `confirmed`, and `confirmed` + `crashed`. The gap between them shows what verification adds.
@@ -63,30 +83,46 @@ The eval runs the real pipeline on a labeled dataset and compares the reported b
 
 ### Results (Claude Sonnet, 3 runs per file)
 
-| | Recall | Precision (all reports) | Precision (confirmed only) |
-| --- | --- | --- | --- |
-| First prompt | 24/24 | 24/30 | 18/21 |
-| Prompt with "the docstring is the contract" | 24/24 | 24/24 | 18/18 |
+Each step changed one thing and was measured against the previous run.
 
-Both false positives with the first prompt came back in every run: "three_sum mutates its input list" and "hash-based user ids may collide". Each is wrong only under an assumption the docstring does not make. The prompt now says that such issues are not bugs and should be reported as notes that name the assumption. The model did exactly that, and recall did not drop.
+**1. "The docstring is the contract"** (first 7 files). Both false positives with the first prompt came back in every run: "three_sum mutates its input list" and "hash-based user ids may collide". Each is wrong only under an assumption the docstring does not make. The prompt now says such issues are notes, not bugs.
+
+| | Recall | Precision |
+| --- | --- | --- |
+| First prompt | 24/24 | 24/30 |
+| Docstring rule | 24/24 | 24/24 |
+
+**2. Asking the user** (all 16 files). Without questions, the model already noticed the problem in the tax file in every run, but only wrote a note like "VIP customers pay a higher rate". It had no way to settle it.
+
+| | Recall | Recall (confirmed) | Precision | Questions |
+| --- | --- | --- | --- | --- |
+| No questions | 39/45 | 33/45 | 39/39 | – |
+| With `ask_user` | 43/45 | 37/45 | 43/43 | 20 |
+
+- The tax bug went from 0/3 to 3/3, all confirmed by a test.
+- On the files where the intended behavior turned out to be what the code does, the model asked, got the answer and reported no bug.
+- No questions at all on the files with a clear contract.
+- Half of the questions (10/20) were about details that did not matter, like "should a negative subtotal raise an error?". The answers did not change the result, but a real user would notice.
+- A review takes about 9.5 seconds on average, against 8 without questions.
 
 ### What the eval showed
 
-- The model found every labeled bug in every run, and never reported a bug on the clean file or on the traps.
+- The model never reported a bug on the clean file or on the traps.
 - Verification caught claims that looked proven but were not. On unreachable code the model reported a bug whose test failed for a different reason, and on a file with two bugs the first one crashed before the test reached the second. `line_not_reached` moved these out of `confirmed`.
 - A failing test proves something is broken, not that the explanation is right.
+- Asking helps only when the model knows it is unsure. In the cache file it saw both aliasing problems but decided that copying in `get` was optional, so it never asked, and it reported that bug in only 1 of 3 runs.
 
 ### Limits
 
-- 7 files and 3 runs per file. Treat the numbers as a direction, not proof.
-- The docstrings were written with the bugs in mind, so recall is optimistic. The same reason hides the possible cost of the docstring rule: no bug in this dataset sits outside the docstring.
-- The dataset is now at its ceiling. The next experiments need harder files to show a difference.
+- 16 files and 3 runs per file. Treat the numbers as a direction, not proof.
+- The docstrings were written with the bugs in mind, so recall is optimistic. No bug in this dataset sits outside both the docstring and the user's answers, so the cost of the docstring rule is not measured.
+- The simulated user is a model. Its answers are printed and were checked by hand, but they are not a real user.
 
 ## Design notes
 
 - **The model proposes, code decides.** An earlier version let the model mark its own bugs as verified, and it marked correct behavior as a bug. Now the model only writes the test.
 - **Prefer a deterministic check over a prompt rule.** Line numbers come from the tool, the summary line is built in code, and missing tests are caught in code. The prompt already said "do not report a bug you cannot demonstrate", and the model still did, so checks that matter live in code.
-- **Model choice is measured.** On the same sample, Claude Haiku found surface issues but misdiagnosed the main logic bug, while Claude Sonnet found it with a correct failing input. The model is configurable.
+- **Model choice is measured.** On the same sample, Claude Haiku found surface issues but misdiagnosed the main logic bug, while Claude Sonnet found it with a correct failing input. Haiku was also not cheaper in practice: on one small file it ran code up to 64 times and used up to 1.25M input tokens per review, against about 5,000 for Sonnet. The model is configurable.
 - **Tests assert a property when several answers are valid**, for example `i != j and nums[i] + nums[j] == target` instead of one exact pair.
 
 ## Roadmap
@@ -100,6 +136,7 @@ Both false positives with the first prompt came back in every run: "three_sum mu
 | 4 | Parallel specialist reviewers: security, performance, code quality | LangGraph | |
 | 5 | Routing: small diffs get one reviewer, large diffs get all three | LangGraph conditional edges | |
 | 6 | Critic agent that filters false positives and loops back for revisions | LangGraph cycles | |
+| – | Ask the user about intended behavior | LangGraph `interrupt`, checkpointer | ✅ |
 | 7 | Human-in-the-loop approval before posting to GitHub | LangGraph checkpointer | |
 
 ## Project structure
@@ -116,15 +153,19 @@ code-reviewer/
 │   ├── formatting.py      # Terminal rendering of a review
 │   ├── tools/
 │   │   ├── files.py       # Line-numbered, repo-scoped file reader
-│   │   └── execution.py   # Test runner and the run_python tool
+│   │   ├── execution.py   # Test runner and the run_python tool
+│   │   └── questions.py   # ask_user tool (pauses the agent for an answer)
 │   └── agents/
 │       └── reviewer.py    # Reviewer agent definition
 ├── evals/
 │   ├── dataset/           # Files with known bugs and traps
 │   ├── labels.json        # Where the bugs are
+│   ├── questions.json     # Intended behavior for unclear files (for the simulated user)
+│   ├── simulated_user.py  # Answers the reviewer's questions during the eval
 │   ├── matching.py        # Matching and metrics (pure functions)
 │   ├── run_eval.py        # Runs the eval, prints the table, saves raw results
 │   └── results/           # baseline.json
+├── docs/pipeline.md       # Diagrams of the whole flow
 ├── samples/               # Example files for manual runs
 ├── tests/                 # Unit tests (no model calls)
 ├── .env.example
@@ -151,11 +192,13 @@ cp .env.example .env
 ## Usage
 
 ```bash
-python -m code_reviewer samples/two_sum.py     # review a file
+python -m code_reviewer samples/two_sum.py     # review a file (may ask you questions)
+python -m code_reviewer samples/two_sum.py --no-questions
 pytest                                         # unit tests, no API calls
 
 python -m evals.run_eval                       # full eval (calls the model)
 python -m evals.run_eval --only store.py       # selected dataset files
+python -m evals.run_eval --no-questions        # the reviewer cannot ask the simulated user
 python -m evals.run_eval --rescore evals/results/baseline.json    # re-score saved runs, no API calls
 python -m evals.run_eval --reverify evals/results/baseline.json   # re-run saved tests with current verification
 ```
@@ -168,6 +211,7 @@ Set these in `.env`:
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | Anthropic API key | required |
 | `REVIEWER_MODEL` | Model in `provider:model` format. Sonnet is recommended for review quality | `claude-haiku-4-5` |
+| `SIMULATED_USER_MODEL` | Model that answers the reviewer's questions in the eval | `anthropic:claude-haiku-4-5` |
 | `LANGSMITH_TRACING` | Set to `true` to enable tracing | off |
 | `LANGSMITH_API_KEY` | LangSmith API key | |
 | `LANGSMITH_ENDPOINT` | LangSmith API URL. EU accounts use `https://eu.api.smith.langchain.com` | US endpoint |
