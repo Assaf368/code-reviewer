@@ -142,5 +142,22 @@
       "description": "release does not check the lease. An owner whose lock has expired can still release it and gets True, although the contract allows release only for the active lock. ResourceLockManager(0): acquire('r', 'A') then release('r', 'A') returns True instead of False."
     }
   ],
-  "rate_limiter.py": []
+  "rate_limiter.py": [],
+  "user_session.py": [
+    {
+      "category": "bug",
+      "lines": [
+        18
+      ],
+      "contract": "implied",
+      "description": "get_session_metadata returns the whole session record (token, metadata, created_at) instead of the metadata, and so also hands out the session token. No docstring: the method name is the only contract."
+    },
+    {
+      "category": "security",
+      "lines": [
+        9
+      ],
+      "description": "The token is built from the user id and a timestamp in seconds, so it can be guessed. A real issue, labeled so a bug report here counts as miscategorized, not as a false positive."
+    }
+  ]
 }

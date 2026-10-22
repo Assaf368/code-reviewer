@@ -1,0 +1,43 @@
+{
+  "rbac.py": [
+    {
+      "lines": [
+        27,
+        28,
+        29
+      ],
+      "kind": "implied",
+      "question": "Should permissions be inherited through several levels (grandparent -> parent -> child)?",
+      "answer": "Yes. 'Hierarchical role inheritance' means inheritance is transitive. Bug."
+    }
+  ],
+  "cache.py": [
+    {
+      "lines": [
+        30
+      ],
+      "kind": "ambiguous",
+      "question": "Must changing a value returned by get leave the cached value unchanged?",
+      "answer": "Yes. get returns the value exactly as it was when set was called, for every later get. Bug."
+    }
+  ],
+  "user_session.py": [
+    {
+      "lines": [
+        8,
+        10
+      ],
+      "kind": "implied",
+      "question": "Should create_or_update_session replace an existing session for the same user?",
+      "answer": "Yes, the name says so. Correct code, no bug."
+    },
+    {
+      "lines": [
+        18
+      ],
+      "kind": "implied",
+      "question": "Should get_session_metadata return only the metadata passed to create_or_update_session?",
+      "answer": "Yes, the name says so. Returning the whole record with the token is a bug."
+    }
+  ]
+}
