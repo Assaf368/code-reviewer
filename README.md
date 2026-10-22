@@ -32,6 +32,8 @@ A real review of [`evals/dataset/store.py`](evals/dataset/store.py), a 200-line 
 
 ## How a bug gets verified
 
+Diagrams of the whole flow (review, verification, eval) are in [docs/pipeline.md](docs/pipeline.md).
+
 1. The agent reads the file through a `read_file` tool that returns numbered lines, so it cites real line numbers.
 2. For each bug it writes `test_code`: asserts that pass on correct code and fail because of the bug.
 3. `verify_issue` runs the test in a separate process with a timeout. The file is imported as a module and the test runs in a namespace that holds only the file's names.
