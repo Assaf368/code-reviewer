@@ -102,5 +102,21 @@
       ],
       "description": "Tax is computed on subtotal instead of the discounted subtotal. With one item at 100.0 and a 50% discount, checkout returns 60.0 instead of 55.0."
     }
+  ],
+  "cache.py": [
+    {
+      "category": "bug",
+      "lines": [
+        19
+      ],
+      "description": "set stores the caller's object without a copy. Changing the dict after set(\"k\", d) changes what get(\"k\") returns, so it is not the value as it was when set was called."
+    },
+    {
+      "category": "bug",
+      "lines": [
+        30
+      ],
+      "description": "get returns the stored object itself. Changing the returned dict changes the cache, so the next get returns the changed value. Fixing set alone does not fix this."
+    }
   ]
 }
