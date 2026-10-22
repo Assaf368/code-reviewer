@@ -15,6 +15,7 @@ flowchart TD
     subgraph LOOP["Agent loop: the model decides which tools to call"]
         AGENT <--> READ["read_file<br/>line-numbered, repo only"]
         AGENT <--> RUN["run_python<br/>file + model code, separate process,<br/>5s timeout, output cut to 2000 chars"]
+        AGENT <--> ASK["ask_user, at most 2 rounds<br/>pauses the agent with LangGraph interrupt;<br/>the terminal or the eval's simulated user answers"]
     end
 
     AGENT --> OUT["ReviewResult<br/>list of Issue: line, category, severity,<br/>title, explanation, fix,<br/>test_code or untestable_reason"]
@@ -73,7 +74,8 @@ flowchart TD
     TRACE --> EACH["for each file, 3 runs"]
     EACH --> ISO["isolated_repo: copy the one file<br/>into an empty temp dir,<br/>point PROJECT_ROOT there"]
     ISO --> REV["review_file()<br/>same pipeline as the CLI"]
-    REV --> REC["record: issues + statuses,<br/>seconds, tool calls, tokens,<br/>or the error if the run failed"]
+    REV <--> SIM["simulated user (Haiku)<br/>knows the intent from questions.json,<br/>never the verdict"]
+    REV --> REC["record: issues + statuses, questions and answers,<br/>seconds, tool calls, tokens,<br/>or the error if the run failed"]
     REC --> SAVE["save results JSON after every run"]
     SAVE --> EACH
     SAVE --> SCORE["score_file: match issues to labels<br/>same category, line within 1"]

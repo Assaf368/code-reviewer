@@ -3,6 +3,7 @@
 Usage:
     python -m evals.run_eval                    # run the reviewer, save and score
     python -m evals.run_eval --only a.py b.py   # run only these dataset files
+    python -m evals.run_eval --no-questions     # the reviewer cannot ask the simulated user
     python -m evals.run_eval --rescore <json>   # score saved runs against current labels
     python -m evals.run_eval --reverify <json>  # also rerun the saved tests with current verification
 """
@@ -28,12 +29,14 @@ from code_reviewer.schemas import Issue, ReviewResult
 from code_reviewer.tools import files
 from code_reviewer.verification import verify_issue
 from evals.matching import LEVELS, FileScore, Label, Reported, Run, score_file, total
+from evals.simulated_user import make_simulated_user
 
 RUNS = 3
 
 EVALS_DIR = Path(__file__).parent
 DATASET_DIR = EVALS_DIR / "dataset"
 LABELS_PATH = EVALS_DIR / "labels.json"
+QUESTIONS_PATH = EVALS_DIR / "questions.json"
 RESULTS_DIR = EVALS_DIR / "results"
 
 
@@ -64,13 +67,18 @@ def isolated_repo(source: Path) -> Iterator[str]:
 
 
 @traceable(name="review case", process_inputs=lambda inputs: {"file": inputs["source"].name})
-def run_once(source: Path) -> dict:
-    """Review one file in isolation. A failure is recorded, never raised."""
+def run_once(source: Path, points: list[dict] | None = None) -> dict:
+    """Review one file in isolation. A failure is recorded, never raised.
+
+    points are the unclear spots the simulated user knows about. None means the
+    reviewer cannot ask questions; [] means it can, but nothing is unclear.
+    """
     record = {"file": source.name, "error": None, "issues": None}
+    answer_questions = make_simulated_user(points) if points is not None else None
     start = time.perf_counter()
     try:
         with isolated_repo(source) as file_name:
-            outcome = review_file(file_name)
+            outcome = review_file(file_name, answer_questions)
     except Exception as error:
         record["error"] = f"{type(error).__name__}: {error}"
         return record
@@ -78,6 +86,7 @@ def run_once(source: Path) -> dict:
         record["seconds"] = round(time.perf_counter() - start, 1)
 
     record["tool_calls"] = outcome.tool_calls
+    record["questions"] = outcome.questions
     record["tokens"] = outcome.tokens
     record["issues"] = [
         issue.model_dump() | {"verification": verification}
@@ -92,8 +101,9 @@ def describe(record: dict) -> str:
         return f"failed after {record['seconds']}s: {record['error'][:120]}"
     tools = ", ".join(f"{name}×{count}" for name, count in record["tool_calls"].items())
     tokens = record["tokens"]
-    return (f"{record['seconds']}s, {len(record['issues'])} issues, tools: {tools or 'none'}, "
-            f"tokens: {tokens.get('input', 0)} in / {tokens.get('output', 0)} out")
+    asked = sum(len(exchange["questions"]) for exchange in record.get("questions", []))
+    return (f"{record['seconds']}s, {len(record['issues'])} issues, {asked} questions, "
+            f"tools: {tools or 'none'}, tokens: {tokens.get('input', 0)} in / {tokens.get('output', 0)} out")
 
 
 def to_run(record: dict) -> Run:
@@ -103,7 +113,8 @@ def to_run(record: dict) -> Run:
         Reported(i["line"], i["category"], i["verification"], i["title"])
         for i in record["issues"]
     ]
-    return Run(record["file"], issues)
+    asked = sum(len(exchange["questions"]) for exchange in record.get("questions", []))
+    return Run(record["file"], issues, questions=asked)
 
 
 def sha256(text: str) -> str:
@@ -127,7 +138,7 @@ def print_table(scores: list[FileScore]) -> None:
     short = {"all": "all", "confirmed": "conf", "confirmed+crashed": "c+cr"}
     cells = "".join(f"{short[level]:>7}" for level in LEVELS)
     print(f"{'':<24}{'recall':^21}  {'precision':^21}")
-    print(f"{'file':<24}{cells}  {cells}{'dup':>6}{'miscat':>8}{'fail':>6}")
+    print(f"{'file':<24}{cells}  {cells}{'dup':>6}{'miscat':>8}{'fail':>6}{'q':>5}")
     for score in scores:
         recall = "".join(
             f"{format_ratio(c.found, c.expected):>7}" for c in score.levels.values()
@@ -137,7 +148,7 @@ def print_table(scores: list[FileScore]) -> None:
             for c in score.levels.values()
         )
         print(f"{score.file:<24}{recall}  {precision}"
-              f"{score.duplicates:>6}{len(score.miscategorized):>8}{score.failed:>6}")
+              f"{score.duplicates:>6}{len(score.miscategorized):>8}{score.failed:>6}{score.questions:>5}")
 
 
 def print_labels(labels: dict[str, list[Label]], scores: list[FileScore]) -> None:
@@ -154,6 +165,21 @@ def print_labels(labels: dict[str, list[Label]], scores: list[FileScore]) -> Non
                 continue
             print(f"{file}:{lines} [{label.category}] → found in {found}/{score.runs} runs "
                   f"({statuses})")
+
+
+def print_questions(records: list[dict], unclear_files: set[str]) -> None:
+    """Every question and answer, so a leaking simulated user is easy to spot."""
+    unneeded = 0
+    for record in records:
+        for exchange in record.get("questions") or []:
+            if record["file"] not in unclear_files:
+                unneeded += len(exchange["questions"])
+            print(f"questions: {record['file']} run {record['run']}")
+            for question in exchange["questions"]:
+                print(f"  Q: {question}")
+            for line in str(exchange["answers"]).splitlines():
+                print(f"  A: {line}")
+    print(f"questions on files with a clear contract: {unneeded}")
 
 
 def print_details(scores: list[FileScore], failures: list[dict]) -> None:
@@ -183,6 +209,9 @@ def report(model: str, records: list[dict], labels: dict[str, list[Label]]) -> N
     print_labels(labels, scores)
     print()
     print_details(scores, [r for r in records if r["issues"] is None])
+    if any(r.get("questions") for r in records):
+        print()
+        print_questions(records, set(json.loads(QUESTIONS_PATH.read_text())))
 
 
 def reverify(records: list[dict]) -> list[dict]:
@@ -226,12 +255,13 @@ def save(path: Path, result: dict) -> None:
         "results_file": inputs["path"].name,
     },
 )
-def run_all(sources: list[Path], result: dict, path: Path) -> None:
+def run_all(sources: list[Path], result: dict, path: Path, questions: dict | None = None) -> None:
     """Review every source RUNS times. Saves after each run, so a stopped eval keeps its work."""
     for source in sources:
         for run in range(1, RUNS + 1):
             print(f"reviewing {source.name} (run {run}/{RUNS}) ... ", end="", flush=True)
-            record = run_once(source, langsmith_extra={
+            points = None if questions is None else questions.get(source.name, [])
+            record = run_once(source, points, langsmith_extra={
                 "name": f"{source.name} run {run}",
                 "metadata": {"file": source.name, "run": run, "model": MODELNAME},
             }) | {"run": run}
@@ -248,6 +278,8 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--rescore", type=Path, help="score a saved run against current labels")
     mode.add_argument("--reverify", type=Path, help="like --rescore, but rerun the saved tests first")
     mode.add_argument("--only", nargs="+", metavar="FILE", help="run only these dataset files")
+    parser.add_argument("--no-questions", action="store_true",
+                        help="the reviewer cannot ask the simulated user questions")
     return parser.parse_args()
 
 
@@ -276,13 +308,15 @@ def main() -> None:
         "schema_sha256": sha256(json.dumps(ReviewResult.model_json_schema(), sort_keys=True)),
         "dataset_sha256": {source.name: sha256(source.read_text()) for source in sources},
         "labels": raw_labels,
+        "questions_enabled": not args.no_questions,
         "complete": False,
         "runs": [],
     }
     RESULTS_DIR.mkdir(exist_ok=True)
     path = RESULTS_DIR / f"{timestamp}.json"
 
-    run_all(sources, result, path, langsmith_extra={
+    questions = None if args.no_questions else json.loads(QUESTIONS_PATH.read_text())
+    run_all(sources, result, path, questions, langsmith_extra={
         "metadata": {"model": MODELNAME, "runs_per_file": RUNS, "results_file": path.name},
         "tags": ["eval", MODELNAME],
     })

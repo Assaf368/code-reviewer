@@ -164,7 +164,7 @@ def test_isolated_repo_hides_other_files(tmp_path):
 
 
 def test_failed_run_is_recorded(monkeypatch, tmp_path):
-    def broken_review(file_path):
+    def broken_review(file_path, answer_questions=None):
         raise RuntimeError("model returned invalid output")
 
     monkeypatch.setattr(run_eval, "review_file", broken_review)
@@ -181,7 +181,7 @@ def test_failed_run_is_recorded(monkeypatch, tmp_path):
 def test_stopped_eval_keeps_the_runs_that_finished(monkeypatch, tmp_path):
     calls = []
 
-    def review_then_stop(file_path):
+    def review_then_stop(file_path, answer_questions=None):
         calls.append(file_path)
         if len(calls) == 2:
             raise KeyboardInterrupt  # like pressing Ctrl+C during the second run
@@ -199,3 +199,10 @@ def test_stopped_eval_keeps_the_runs_that_finished(monkeypatch, tmp_path):
     saved = json.loads(path.read_text())
     assert len(saved["runs"]) == 1
     assert saved["complete"] is False
+
+
+def test_questions_are_counted_per_file():
+    record = {"file": "a.py", "error": None, "issues": [],
+              "questions": [{"questions": ["Q1", "Q2"], "answers": "..."}, {"questions": ["Q3"], "answers": "..."}]}
+    result = score_file("a.py", [run_eval.to_run(record)], [BUG])
+    assert result.questions == 3

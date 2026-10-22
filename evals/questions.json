@@ -8,7 +8,8 @@
       ],
       "kind": "implied",
       "question": "Should permissions be inherited through several levels (grandparent -> parent -> child)?",
-      "answer": "Yes. 'Hierarchical role inheritance' means inheritance is transitive. Bug."
+      "intent": "Permissions are inherited through every level: a role gets the permissions of its parents, their parents, and so on.",
+      "verdict": "bug"
     }
   ],
   "cache.py": [
@@ -18,7 +19,8 @@
       ],
       "kind": "ambiguous",
       "question": "Must changing a value returned by get leave the cached value unchanged?",
-      "answer": "Yes. get returns the value exactly as it was when set was called, for every later get. Bug."
+      "intent": "get must always return the value as it was when set was called, even if a caller changed an object it got from an earlier get.",
+      "verdict": "bug"
     }
   ],
   "user_session.py": [
@@ -29,7 +31,8 @@
       ],
       "kind": "implied",
       "question": "Should create_or_update_session replace an existing session for the same user?",
-      "answer": "Yes, the name says so. Correct code, no bug."
+      "intent": "Calling it again for the same user replaces that user's old session.",
+      "verdict": "correct"
     },
     {
       "lines": [
@@ -37,7 +40,8 @@
       ],
       "kind": "implied",
       "question": "Should get_session_metadata return only the metadata passed to create_or_update_session?",
-      "answer": "Yes, the name says so. Returning the whole record with the token is a bug."
+      "intent": "It returns only the metadata dict that was passed in, nothing else.",
+      "verdict": "bug"
     }
   ],
   "discount_engine.py": [
@@ -48,7 +52,8 @@
       ],
       "kind": "missing",
       "question": "Should the percentage discount be applied before the flat discount, or after it?",
-      "answer": "Percentage first, then the flat amount, as the code does. Correct code, no bug."
+      "intent": "Apply the percentage discount first, then subtract the flat discount.",
+      "verdict": "correct"
     }
   ],
   "pricing.py": [
@@ -58,7 +63,8 @@
       ],
       "kind": "ambiguous",
       "question": "Is modifier_value a fixed amount to subtract, a percentage, or a surcharge to add?",
-      "answer": "A fixed amount subtracted from the sum, as the code does. Correct code, no bug."
+      "intent": "modifier_value is a fixed amount subtracted from the total.",
+      "verdict": "correct"
     }
   ],
   "tax.py": [
@@ -68,7 +74,8 @@
       ],
       "kind": "missing",
       "question": "Should VIP users pay a higher tax rate (17%) than regular users (10%), or the other way around?",
-      "answer": "The other way around: VIP 10%, regular 17%. Bug."
+      "intent": "VIP users pay 10% tax and regular users pay 17%.",
+      "verdict": "bug"
     }
   ]
 }
