@@ -50,5 +50,15 @@
       "question": "Should the percentage discount be applied before the flat discount, or after it?",
       "answer": "Percentage first, then the flat amount, as the code does. Correct code, no bug."
     }
+  ],
+  "pricing.py": [
+    {
+      "lines": [
+        22
+      ],
+      "kind": "ambiguous",
+      "question": "Is modifier_value a fixed amount to subtract, a percentage, or a surcharge to add?",
+      "answer": "A fixed amount subtracted from the sum, as the code does. Correct code, no bug."
+    }
   ]
 }
