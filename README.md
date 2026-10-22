@@ -12,6 +12,16 @@ The project is built in stages, starting from a single agent and growing into a 
 
 **Stack:** Python, LangChain, LangGraph (`StateGraph`, `interrupt`), Claude Sonnet / Opus / Haiku, Pydantic, pytest, GitHub Actions, LangSmith tracing.
 
+## Highlights
+
+- **Tool-using agent with structured output.** The reviewer reads files, runs code and returns a validated Pydantic review.
+- **Deterministic verification of LLM claims.** Every bug comes with a test that the project runs itself; the model never marks its own work as verified. [How it works](#how-a-bug-gets-verified)
+- **Human-in-the-loop.** When intent is unclear, the agent pauses with a LangGraph `interrupt`, asks, and resumes from the same point. [Details](#asking-about-intended-behavior)
+- **Critic with cost-aware model routing.** A stronger model (Opus) checks only the reports that code flags as weak, on 6 of 48 reviews. [Details](#the-critic)
+- **Offline evals.** A labeled dataset, precision and recall at three verification levels, isolated runs with no leakage of labels or answers, a simulated user for the questions, and a saved baseline to catch regressions. [Results](#evaluation)
+- **Observability and cost tracking.** One LangSmith trace per eval run, with time, tool calls and tokens recorded per model for every review. [Details](#observability-and-testing)
+- **Tested without API calls.** 75 unit tests use fake chat models, and CI runs them on every push.
+
 ## Example output
 
 A real review of [`evals/dataset/store.py`](evals/dataset/store.py), a 200-line file with three planted bugs:
@@ -163,6 +173,13 @@ Each step changed one thing and was measured against the previous run.
 - 16 files and 3 runs per file. Treat the numbers as a direction, not proof.
 - The docstrings were written with the bugs in mind, so recall is optimistic. No bug in this dataset sits outside both the docstring and the user's answers, so the cost of the docstring rule is not measured.
 - The simulated user is a model. Its answers are printed and were checked by hand, but they are not a real user.
+
+## Observability and testing
+
+- **Tracing.** Each eval run is one LangSmith trace, with a child run per review and every model and tool call under it. Each review carries the model and the file as metadata, so runs can be filtered.
+- **Cost and latency.** Every review records its time, its tool calls by name, and input and output tokens, with the critic's tokens kept apart from the reviewer's. This is how the Haiku experiment showed that the cheaper model was not cheaper in practice.
+- **Re-scoring without the model.** Raw results are saved after every review, so a stopped run keeps its work. `--rescore` scores saved runs against updated labels, and `--reverify` reruns the saved tests with the current verification code, with no API calls.
+- **Unit tests with fake models.** The agent loop, the question limit, the critic's decisions and the graph's stop conditions are all tested with LangChain fake chat models that return scripted tool calls. Tests turn tracing off, so they never send data to LangSmith.
 
 ## Design notes
 
