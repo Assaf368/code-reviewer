@@ -81,7 +81,13 @@ def matches(issue: Reported, label: Label) -> bool:
 
 
 def is_miscategorized(issue: Reported, labels: list[Label]) -> bool:
-    """Near a label of another category, and matching no label of its own."""
+    """Near a label of another category, and matching no label of its own.
+
+    Readability and security notes never count: next to a bug they were always a
+    separate, real issue (a deprecated call, a typo), never a bug called by the wrong name.
+    """
+    if issue.category in ("readability", "security"):
+        return False
     if any(matches(issue, label) for label in labels):
         return False
     return any(is_near(issue, label) and label.category != issue.category for label in labels)

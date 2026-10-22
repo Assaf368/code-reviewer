@@ -77,12 +77,13 @@ def test_levels_filter_by_verification():
 
 # --- Categories ---
 
-def test_readability_issue_on_a_bug_line_is_miscategorized():
-    typo = Reported(10, "readability", "not_tested", "Typo in variable name")
-    result = score([typo])
-    assert result.miscategorized == [typo]
+def test_readability_issue_next_to_a_bug_is_other_not_miscategorized():
+    # Like cache.py: a note about utcnow() on line 18, next to the bug on line 19.
+    note = Reported(9, "readability", "not_tested", "utcnow() is deprecated")
+    result = score([note])
+    assert result.miscategorized == []
+    assert result.other == 1
     assert result.levels["all"].found == 0
-    assert result.other == 0
 
 
 def test_bug_issue_on_a_performance_line_is_only_miscategorized():

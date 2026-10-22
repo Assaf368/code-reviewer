@@ -85,7 +85,7 @@ Out of scope for v1.0 (list it in the README as possible next steps): parallel r
 
 ## Eval
 
-- `evals/labels.json`: `{"file.py": [{"category": "bug", "lines": [N, ...], "description": "..."}], "clean.py": []}`. A line belongs to a label if a reviewer pointing at it would be describing the same bug. Unreachable code gets a `readability` label, so a bug report on it counts as miscategorized.
+- `evals/labels.json`: `{"file.py": [{"category": "bug", "lines": [N, ...], "description": "..."}], "clean.py": []}`. A line belongs to a label if a reviewer pointing at it would be describing the same bug. Unreachable code gets a `readability` label, so a bug report on it counts as miscategorized. The other direction does not count: a readability or security note next to a bug label is counted as `other`, because every such case so far was a separate real issue (utcnow, a typo).
 - Each dataset file must import without crashing and must have docstrings that state the contract.
 - Each file is reviewed 3 times; recall and precision at three levels: all reports, `confirmed`, `confirmed` + `crashed`.
 - `evals/results/baseline.json` is the reference run (Sonnet, prompt with "the docstring is the contract"). `--rescore` and `--reverify` work on saved runs without calling the model.
