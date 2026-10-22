@@ -161,5 +161,15 @@
     }
   ],
   "discount_engine.py": [],
-  "pricing.py": []
+  "pricing.py": [],
+  "tax.py": [
+    {
+      "category": "bug",
+      "lines": [
+        6
+      ],
+      "contract": "missing",
+      "description": "The rates are swapped: VIP users should pay 10% tax and regular users 17%. No docstring, so only asking (or guessing from the domain) can find it. compute_total_with_tax(100, True) returns 117.0 instead of 110.0."
+    }
+  ]
 }

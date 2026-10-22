@@ -60,5 +60,15 @@
       "question": "Is modifier_value a fixed amount to subtract, a percentage, or a surcharge to add?",
       "answer": "A fixed amount subtracted from the sum, as the code does. Correct code, no bug."
     }
+  ],
+  "tax.py": [
+    {
+      "lines": [
+        6
+      ],
+      "kind": "missing",
+      "question": "Should VIP users pay a higher tax rate (17%) than regular users (10%), or the other way around?",
+      "answer": "The other way around: VIP 10%, regular 17%. Bug."
+    }
   ]
 }
