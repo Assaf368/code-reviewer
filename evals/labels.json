@@ -130,5 +130,16 @@
       "contract": "implied",
       "description": "has_permission checks only direct parents, not their parents. With admin -> editor -> viewer, viewer does not get admin's permissions. No explicit contract: 'hierarchical role inheritance' in the class docstring is the only hint."
     }
+  ],
+  "locks.py": [
+    {
+      "category": "bug",
+      "lines": [
+        36,
+        38,
+        41
+      ],
+      "description": "release does not check the lease. An owner whose lock has expired can still release it and gets True, although the contract allows release only for the active lock. ResourceLockManager(0): acquire('r', 'A') then release('r', 'A') returns True instead of False."
+    }
   ]
 }
