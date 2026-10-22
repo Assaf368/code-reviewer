@@ -33,6 +33,7 @@ class Run:
     issues: list[Reported] | None  # None means the run failed
     error: str | None = None
     questions: int = 0  # questions the reviewer asked the user
+    unanswered: int = 0  # questions the user had no requirement about
 
 
 def ratio(numerator: int, denominator: int) -> float | None:
@@ -70,6 +71,7 @@ class FileScore:
     unmatched_performance: int = 0
     other: int = 0  # security and readability issues, not scored
     questions: int = 0  # questions asked over successful runs
+    unanswered: int = 0  # of those, questions the user had no requirement about
     # label id -> one entry per successful run: statuses of the issues that matched it
     label_hits: dict[str, list[list[str]]] = field(default_factory=dict)
 
@@ -110,6 +112,7 @@ def score_file(file: str, runs: list[Run], labels: list[Label]) -> FileScore:
             continue
         score.runs += 1
         score.questions += run.questions
+        score.unanswered += run.unanswered
 
         for label in labels:
             hits = [issue for issue in run.issues if matches(issue, label)]
@@ -161,5 +164,6 @@ def total(scores: list[FileScore]) -> FileScore:
         result.unmatched_performance += score.unmatched_performance
         result.other += score.other
         result.questions += score.questions
+        result.unanswered += score.unanswered
         result.label_hits.update(score.label_hits)
     return result

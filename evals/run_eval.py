@@ -29,7 +29,7 @@ from code_reviewer.schemas import Issue, ReviewResult
 from code_reviewer.tools import files
 from code_reviewer.verification import verify_issue
 from evals.matching import LEVELS, FileScore, Label, Reported, Run, score_file, total
-from evals.simulated_user import make_simulated_user
+from evals.simulated_user import NO_REQUIREMENT, make_simulated_user
 
 RUNS = 3
 
@@ -113,8 +113,12 @@ def to_run(record: dict) -> Run:
         Reported(i["line"], i["category"], i["verification"], i["title"])
         for i in record["issues"]
     ]
-    asked = sum(len(exchange["questions"]) for exchange in record.get("questions", []))
-    return Run(record["file"], issues, questions=asked)
+    exchanges = record.get("questions", [])
+    asked = sum(len(exchange["questions"]) for exchange in exchanges)
+    # The simulated user answers this exact sentence when a question is off the unclear points.
+    unanswered = sum(str(exchange["answers"]).lower().count(NO_REQUIREMENT.lower().rstrip("."))
+                     for exchange in exchanges)
+    return Run(record["file"], issues, questions=asked, unanswered=unanswered)
 
 
 def sha256(text: str) -> str:
@@ -138,7 +142,7 @@ def print_table(scores: list[FileScore]) -> None:
     short = {"all": "all", "confirmed": "conf", "confirmed+crashed": "c+cr"}
     cells = "".join(f"{short[level]:>7}" for level in LEVELS)
     print(f"{'':<24}{'recall':^21}  {'precision':^21}")
-    print(f"{'file':<24}{cells}  {cells}{'dup':>6}{'miscat':>8}{'fail':>6}{'q':>5}")
+    print(f"{'file':<24}{cells}  {cells}{'dup':>6}{'miscat':>8}{'fail':>6}{'q':>5}{'noreq':>7}")
     for score in scores:
         recall = "".join(
             f"{format_ratio(c.found, c.expected):>7}" for c in score.levels.values()
@@ -148,7 +152,8 @@ def print_table(scores: list[FileScore]) -> None:
             for c in score.levels.values()
         )
         print(f"{score.file:<24}{recall}  {precision}"
-              f"{score.duplicates:>6}{len(score.miscategorized):>8}{score.failed:>6}{score.questions:>5}")
+              f"{score.duplicates:>6}{len(score.miscategorized):>8}{score.failed:>6}{score.questions:>5}"
+              f"{score.unanswered:>7}")
 
 
 def print_labels(labels: dict[str, list[Label]], scores: list[FileScore]) -> None:
@@ -178,8 +183,10 @@ def print_questions(records: list[dict], unclear_files: set[str]) -> None:
             for question in exchange["questions"]:
                 print(f"  Q: {question}")
             for line in str(exchange["answers"]).splitlines():
-                print(f"  A: {line}")
+                if line.strip():
+                    print(f"  A: {line}")
     print(f"questions on files with a clear contract: {unneeded}")
+    print("noreq = questions the user had no requirement about (off the unclear points)")
 
 
 def print_details(scores: list[FileScore], failures: list[dict]) -> None:
@@ -241,7 +248,8 @@ def rescore(path: Path, verify_again: bool = False) -> None:
         if sha256((DATASET_DIR / file).read_text()) != digest:
             print(f"Warning: {file} changed since this run; label lines may not match.")
     records = reverify(saved["runs"]) if verify_again else saved["runs"]
-    report(saved["model"], records, load_labels(json.loads(LABELS_PATH.read_text())))
+    labels = load_labels(json.loads(LABELS_PATH.read_text()))
+    report(saved["model"], records, {file: items for file, items in labels.items() if file in saved["dataset_sha256"]})
 
 
 def save(path: Path, result: dict) -> None:

@@ -206,3 +206,13 @@ def test_questions_are_counted_per_file():
               "questions": [{"questions": ["Q1", "Q2"], "answers": "..."}, {"questions": ["Q3"], "answers": "..."}]}
     result = score_file("a.py", [run_eval.to_run(record)], [BUG])
     assert result.questions == 3
+
+
+def test_questions_the_user_had_no_requirement_about_are_counted():
+    record = {"file": "a.py", "error": None, "issues": [],
+              "questions": [{"questions": ["Q1", "Q2", "Q3"],
+                             "answers": "1. VIP pays 10%.\n2. I have no requirement about that.\n"
+                                        "3. I have no requirement about that"}]}
+    result = score_file("a.py", [run_eval.to_run(record)], [BUG])
+    assert result.questions == 3
+    assert result.unanswered == 2
