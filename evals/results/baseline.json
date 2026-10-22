@@ -15,7 +15,12 @@
     "product_except_self.py": "509ca877a2eed27aaa0d7d3297e4f81f42fb4b535b12786597504b62257a7407",
     "two_sum.py": "ee3ea20aa3adcffc2c9e07d78091e1005444a002143e5637eba968326e4fdea0",
     "user_utils.py": "cbac8949f08a39e678c37e188394246cc77823b18c58e30b520c94c516b28611",
-    "store.py": "8613a60497404bde352fa403a2d4db27d637a3a7141b1f708782893649aa0a4f"
+    "store.py": "8613a60497404bde352fa403a2d4db27d637a3a7141b1f708782893649aa0a4f",
+    "cart.py": "f3ab9fe7eb93eb40c68a53db576bfa0a7b9b7cce22b9b2245695ecf62b45bb94",
+    "cache.py": "01408fd8bf1e69c6879c4ba404ccdba53fe4e1fcb21419ab7b1d4a2cd669221d",
+    "rbac.py": "5ba3b7e1d6b81364a99109549d2397ec0763207bfaea2ee85b6c0a35a32e6d9d",
+    "locks.py": "2f8c579d2a71c0239c52267d067b14a6e670d7ea989ceba993a0bca329a8bbef",
+    "rate_limiter.py": "d459ee7bb41b3dc4492d690e93097833fc9e44a84a08caf8442248f1ab280aa3"
   },
   "labels": {
     "max_area.py": [
@@ -112,7 +117,56 @@
         ],
         "description": "calculate_total ignores the ENABLE_DISCOUNTS setting. With it set to False, SUMMER10 still gives 1263.6 for 1 Laptop instead of 1404.0."
       }
-    ]
+    ],
+    "cart.py": [
+      {
+        "category": "bug",
+        "lines": [
+          39
+        ],
+        "description": "Tax is computed on subtotal instead of the discounted subtotal. With one item at 100.0 and a 50% discount, checkout returns 60.0 instead of 55.0."
+      }
+    ],
+    "cache.py": [
+      {
+        "category": "bug",
+        "lines": [
+          19
+        ],
+        "description": "set stores the caller's object without a copy. Changing the dict after set(\"k\", d) changes what get(\"k\") returns, so it is not the value as it was when set was called."
+      },
+      {
+        "category": "bug",
+        "lines": [
+          30
+        ],
+        "description": "get returns the stored object itself. Changing the returned dict changes the cache, so the next get returns the changed value. Fixing set alone does not fix this."
+      }
+    ],
+    "rbac.py": [
+      {
+        "category": "bug",
+        "lines": [
+          27,
+          28,
+          29
+        ],
+        "contract": "implied",
+        "description": "has_permission checks only direct parents, not their parents. With admin -> editor -> viewer, viewer does not get admin's permissions. No explicit contract: 'hierarchical role inheritance' in the class docstring is the only hint."
+      }
+    ],
+    "locks.py": [
+      {
+        "category": "bug",
+        "lines": [
+          36,
+          38,
+          41
+        ],
+        "description": "release does not check the lease. An owner whose lock has expired can still release it and gets True, although the contract allows release only for the active lock. ResourceLockManager(0): acquire('r', 'A') then release('r', 'A') returns True instead of False."
+      }
+    ],
+    "rate_limiter.py": []
   },
   "runs": [
     {
@@ -777,6 +831,590 @@
         }
       ],
       "run": 3
+    },
+    {
+      "file": "cart.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 39,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Tax computed on undiscounted subtotal",
+          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code takes 10% of the original subtotal, so any discount makes the customer overpay. With a 100 subtotal and a 50% discount, the code returns 60.0 when the correct amount is 55.0.",
+          "example": "c=ShoppingCart('u'); c.add_item('a',100,1); c.apply_discount(50); c.checkout() returns 60.0, expected 55.0",
+          "fix": "Use tax = discounted_subtotal * 0.10.",
+          "test_code": "c = ShoppingCart('u')\nc.add_item('a', 100, 1)\nc.apply_discount(50)\nr = c.checkout()\nassert r == 55.0, r",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 10.5,
+      "tool_calls": {
+        "read_file": 1,
+        "run_python": 1
+      },
+      "tokens": {
+        "input": 8352,
+        "output": 459
+      },
+      "run": 1
+    },
+    {
+      "file": "cart.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 39,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Tax computed on the undiscounted subtotal",
+          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code takes 10% of the original subtotal, so a discounted cart is overcharged. With a 100 subtotal and a 50% discount, the correct total is 55.0. The code returns 60.0.",
+          "example": "c=ShoppingCart('u'); c.add_item('a',100,1); c.apply_discount(50); c.checkout() returns 60.0, expected 55.0",
+          "fix": "Use tax = discounted_subtotal * 0.10.",
+          "test_code": "c = ShoppingCart('u')\nc.add_item('a', 100, 1)\nc.apply_discount(50)\nr = c.checkout()\nassert r == 55.0, r",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 6.4,
+      "tool_calls": {
+        "read_file": 1,
+        "run_python": 1
+      },
+      "tokens": {
+        "input": 8352,
+        "output": 458
+      },
+      "run": 2
+    },
+    {
+      "file": "cart.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 39,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Tax computed on the undiscounted subtotal",
+          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code takes 10% of the original subtotal instead, so any discount makes the customer pay too much tax.",
+          "example": "Add an item at price 100 with quantity 1, apply a 50% discount, then checkout. The result is 60.0. The correct result is 55.0.",
+          "fix": "Use tax = discounted_subtotal * 0.10.",
+          "test_code": "c = ShoppingCart('u')\nc.add_item('a', 100, 1)\nc.apply_discount(50)\nr = c.checkout()\nassert r == 55.0, r",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 5.9,
+      "tool_calls": {
+        "read_file": 1,
+        "run_python": 1
+      },
+      "tokens": {
+        "input": 8352,
+        "output": 421
+      },
+      "run": 3
+    },
+    {
+      "file": "cache.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 19,
+          "category": "bug",
+          "severity": "major",
+          "title": "Mutable values are stored by reference, so get() does not return the value as it was at set() time",
+          "explanation": "The contract says get returns the value exactly as it was when set was called. The cache keeps a reference to the caller's object. If the caller mutates it after set(), get() returns the mutated object. The same happens if a caller mutates an object that get() returned, because that object is the cached one.",
+          "example": "d = {'a': 1}; c.set('k', d); d['a'] = 2; c.get('k') returns {'a': 2}",
+          "fix": "Store copy.deepcopy(value) in set(). Return copy.deepcopy(value) from get() as well, if callers may mutate the result.",
+          "test_code": "c = MemoizedDataCache()\nd = {'a': [1]}\nc.set('k', d)\nd['a'].append(2)\nd['b'] = 3\nassert c.get('k') == {'a': [1]}, c.get('k')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 18,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive utcnow() and unbounded growth",
+          "explanation": "datetime.utcnow() is deprecated and returns naive datetimes. A monotonic clock such as time.monotonic() is also more robust against wall-clock changes. Expired entries are only removed if they are read or if clear_expired() is called. This assumes callers will call clear_expired() periodically. Without that, memory can grow without bound.",
+          "example": null,
+          "fix": "Use time.monotonic() or datetime.now(timezone.utc). Document that clear_expired() should be called periodically, or add a size limit.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 8.6,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5128,
+        "output": 817
+      },
+      "run": 1
+    },
+    {
+      "file": "cache.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 19,
+          "category": "bug",
+          "severity": "major",
+          "title": "Cache stores a reference, so later mutation changes the cached value",
+          "explanation": "The contract says get returns the value exactly as it was when set was called. set stores the caller's mutable object without copying it. If the caller mutates the object after set, get returns the mutated object, not the original value. This matters because the cache is meant for complex data payloads.",
+          "example": "d = {'a': [1]}; c.set('k', d); d['a'].append(2); c.get('k') returns {'a': [1, 2]}",
+          "fix": "Store copy.deepcopy(value) in set. Consider returning a deepcopy from get too, so callers cannot mutate the cached object through the returned reference.",
+          "test_code": "c = MemoizedDataCache()\nd = {'a': [1]}\nc.set('k', d)\nd['a'].append(2)\nassert c.get('k') == {'a': [1]}, c.get('k')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 18,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive utcnow and unbounded growth",
+          "explanation": "datetime.utcnow() is deprecated and returns naive datetimes. Expired entries are only removed when get or clear_expired is called, so keys that are never read again stay in memory. This assumes the caller runs clear_expired periodically. time.monotonic() would also avoid problems from wall-clock changes.",
+          "example": null,
+          "fix": "Use time.monotonic() or datetime.now(timezone.utc). Document that clear_expired must be called, or evict expired entries during set.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 7.1,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5128,
+        "output": 724
+      },
+      "run": 2
+    },
+    {
+      "file": "cache.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 19,
+          "category": "bug",
+          "severity": "major",
+          "title": "Mutable values are stored by reference, so get does not return the value as it was at set time",
+          "explanation": "The contract says get returns the value exactly as it was when set was called. The cache keeps a reference to the caller's object. If the caller mutates a dict or list after set, get returns the mutated object. The same happens if the caller mutates an object returned by get. This is likely for the 'complex data payloads' the class is meant for.",
+          "example": "d = {'a': 1}; c.set('k', d); d['a'] = 2; c.get('k') returns {'a': 2}, not {'a': 1}",
+          "fix": "Store copy.deepcopy(value) in set. Optionally deep-copy again in get so callers cannot mutate the cached entry.",
+          "test_code": "c = MemoizedDataCache()\nd = {'a': [1, 2]}\nc.set('k', d)\nd['a'].append(3)\nd['b'] = 2\nassert c.get('k') == {'a': [1, 2]}, c.get('k')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 18,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Uses deprecated, non-monotonic utcnow for expiry",
+          "explanation": "datetime.utcnow() is deprecated since Python 3.12 and returns a naive datetime. Wall-clock changes can make entries expire early or late. This assumes the system clock does not change. time.monotonic() is the better choice for TTLs. The same call is repeated at lines 26 and 33.",
+          "example": null,
+          "fix": "Use time.monotonic() and store the expiry as a float.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 7.6,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5128,
+        "output": 756
+      },
+      "run": 3
+    },
+    {
+      "file": "rbac.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 27,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Inheritance is only followed one level deep",
+          "explanation": "The class claims hierarchical role inheritance. `has_permission` only checks the direct parents' own permission sets. It never looks at the parents' parents. A role therefore doesn't get permissions from grandparent roles, and access is wrongly denied.",
+          "example": "define_role('a', ['read']); define_role('b', []); define_role('c', []); inherit_role('b','a'); inherit_role('c','b'); has_permission('c','read') returns False",
+          "fix": "Traverse ancestors recursively or iteratively, using a visited set so cycles don't loop forever. Check each ancestor's permissions.",
+          "test_code": "e = RBACEngine()\ne.define_role('a', ['read'])\ne.define_role('b', [])\ne.define_role('c', [])\ne.inherit_role('b', 'a')\ne.inherit_role('c', 'b')\nassert e.has_permission('c', 'read') is True, e.has_permission('c', 'read')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 6.3,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 4978,
+        "output": 492
+      },
+      "run": 1
+    },
+    {
+      "file": "rbac.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 27,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Role inheritance is not transitive; only direct parents are checked",
+          "explanation": "The class advertises hierarchical role inheritance. `has_permission` only looks at the role's own permissions and those of its direct parents. A permission held by a grandparent or any higher ancestor is never found, so access is wrongly denied in multi-level hierarchies.",
+          "example": "define_role('admin',['delete']); define_role('editor',[]); define_role('viewer',[]); inherit_role('editor','admin'); inherit_role('viewer','editor'); has_permission('viewer','delete') returns False, but should be True.",
+          "fix": "Traverse ancestors with a DFS or BFS and a visited set. This also makes cycles safe. Check each ancestor's permissions along the way.",
+          "test_code": "e = RBACEngine()\ne.define_role('admin', ['delete'])\ne.define_role('editor', [])\ne.define_role('viewer', [])\ne.inherit_role('editor', 'admin')\ne.inherit_role('viewer', 'editor')\nassert e.has_permission('viewer', 'delete') is True, e.has_permission('viewer', 'delete')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 6.0,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 4978,
+        "output": 573
+      },
+      "run": 2
+    },
+    {
+      "file": "rbac.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 27,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Inheritance is resolved only one level deep",
+          "explanation": "The class claims hierarchical role inheritance, but has_permission checks only the direct parents' own permissions. It never follows the parents' parents, so permissions from grandparent roles are denied.",
+          "example": "define_role('a',['read']); define_role('b',[]); define_role('c',[]); inherit_role('b','a'); inherit_role('c','b'); has_permission('c','read') returns False",
+          "fix": "Traverse the inheritance graph recursively or with a stack. Keep a visited set so cycles don't cause infinite loops. Check each reachable role's permissions.",
+          "test_code": "e = RBACEngine()\ne.define_role('a', ['read'])\ne.define_role('b', [])\ne.define_role('c', [])\ne.inherit_role('b', 'a')\ne.inherit_role('c', 'b')\nassert e.has_permission('c', 'read') is True, e.has_permission('c', 'read')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 5.5,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 4978,
+        "output": 476
+      },
+      "run": 3
+    },
+    {
+      "file": "locks.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 38,
+          "category": "bug",
+          "severity": "major",
+          "title": "release succeeds on an expired lease",
+          "explanation": "The contract says release unlocks only if the requesting owner holds the *active* lock. release() checks only the owner and never checks `expires_at`. An owner whose lease has expired, and who no longer holds the lock, still gets True. Another owner could already have acquired it, or could do so right after. The True result wrongly tells the caller it held the lock until release.",
+          "example": "m = ResourceLockManager(-1); m.acquire('r','a'); m.release('r','a') returns True, but the lease was already expired.",
+          "fix": "In release, compare `datetime.datetime.utcnow()` with `lock_info['expires_at']`. If the lease has expired, return False. Optionally delete the stale entry first.",
+          "test_code": "m = ResourceLockManager(-1)\nassert m.acquire('r', 'a')\nres = m.release('r', 'a')\nassert res is False, res",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 16,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated utcnow and unsynchronized state",
+          "explanation": "datetime.utcnow() is deprecated and returns naive datetimes. It is also not monotonic, so wall-clock adjustments can shorten or extend leases. The class assumes single-threaded use, since the check-then-set in acquire is not atomic. Expired entries are only replaced on re-acquire, so they accumulate.",
+          "example": null,
+          "fix": "Use time.monotonic() or datetime.now(timezone.utc). Add a threading.Lock if the class is used from multiple threads.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 8.7,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5138,
+        "output": 803
+      },
+      "run": 1
+    },
+    {
+      "file": "locks.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 38,
+          "category": "bug",
+          "severity": "major",
+          "title": "release succeeds on an expired lease",
+          "explanation": "The contract says release unlocks only if the owner holds the active lock. release never checks `expires_at`. An owner whose lease has expired can still release and get True, even though it no longer holds the lock. The True result misreports that the owner held an active lock. If the lock was expired, release should return False.",
+          "example": "m = ResourceLockManager(default_lease_seconds=0); m.acquire('r','a'); m.release('r','a') returns True, but the lease has already expired.",
+          "fix": "In release, compare `datetime.datetime.utcnow() >= lock_info['expires_at']`. If the lease has expired, delete the stale entry and return False.",
+          "test_code": "m = ResourceLockManager(default_lease_seconds=0)\nassert m.acquire('r', 'a') is True\nres = m.release('r', 'a')\nassert res is False, res",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 16,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive utcnow and wall-clock time",
+          "explanation": "`datetime.utcnow()` is deprecated since Python 3.12 and returns naive datetimes. It also uses wall-clock time, so a system clock adjustment can shorten or lengthen leases. This assumes the clock never changes. `time.monotonic()` avoids that. The class also has no thread safety, which is another assumption, because acquire and release are check-then-set sequences.",
+          "example": null,
+          "fix": "Use `time.monotonic()`, or `datetime.now(timezone.utc)`, and add a lock if the manager is used from several threads.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 7.9,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5138,
+        "output": 805
+      },
+      "run": 2
+    },
+    {
+      "file": "locks.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 38,
+          "category": "bug",
+          "severity": "minor",
+          "title": "release succeeds for an expired lease",
+          "explanation": "The contract says release unlocks only if the owner holds the *active* lock. The code never checks `expires_at`. An owner whose lease has expired can still release and gets True, even though it no longer holds the lock. The stale entry is also still in the dict, so it reports a successful release of a lock that is no longer held.",
+          "example": "m = ResourceLockManager(default_lease_seconds=0); m.acquire('r','a'); m.release('r','a') returns True, but the lease is already expired.",
+          "fix": "In release, compare the current time with lock_info['expires_at']. If the lease has expired, delete the stale entry and return False.",
+          "test_code": "m = ResourceLockManager(default_lease_seconds=0)\nassert m.acquire('r', 'a')\nres = m.release('r', 'a')\nassert res is False, res",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 16,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive datetime.utcnow and untestable clock",
+          "explanation": "datetime.utcnow() is deprecated since Python 3.12 and returns a naive datetime. The clock is hard-coded, so expiry is hard to test without sleeping. The code also assumes single-threaded use, because the check-then-set in acquire is not atomic.",
+          "example": null,
+          "fix": "Use time.monotonic() or datetime.now(timezone.utc). Allow an injectable clock, and add a threading.Lock if the manager is shared across threads.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 7.2,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5138,
+        "output": 729
+      },
+      "run": 3
+    },
+    {
+      "file": "rate_limiter.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 37,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Wall-clock `utcnow()` is used for timing; it is deprecated and not monotonic",
+          "explanation": "`datetime.utcnow()` is deprecated since Python 3.12 and returns a naive datetime. It follows the system clock, which can jump because of NTP or manual changes. A backward jump gives a negative delta, so no refill happens. A forward jump gives a sudden full refill. The code assumes the system clock is stable. `time.monotonic()` is better for rate limiting. It also can't be injected, so the class is hard to test.",
+          "example": null,
+          "fix": "Use `time.monotonic()` as float seconds, or accept an injectable clock, and store floats instead of datetimes.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 19,
+          "category": "performance",
+          "severity": "minor",
+          "title": "Bucket dictionary grows without bound",
+          "explanation": "An entry is added for every distinct key and never evicted. A caller that uses many unique keys, such as per-IP or per-request ids, will leak memory. Entries whose buckets have fully refilled could be removed.",
+          "example": null,
+          "fix": "Periodically evict buckets that have refilled to capacity, or use a TTL or LRU cache.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 33,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Thread-safety assumption and undocumented behavior of `consume`",
+          "explanation": "`consume` does a read-modify-write on `_buckets` without a lock. This assumes single-threaded use, so concurrent callers could both pass the check and over-consume. The method also has no docstring. It returns True for `tokens_to_consume <= 0`, and it always returns False when the request exceeds capacity. Neither case is documented.",
+          "example": null,
+          "fix": "Guard the update with a `threading.Lock` or document the single-thread assumption. Add a docstring that covers the edge cases.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 10.2,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5249,
+        "output": 951
+      },
+      "run": 1
+    },
+    {
+      "file": "rate_limiter.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 37,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Wall-clock naive utcnow() used for elapsed-time measurement",
+          "explanation": "datetime.utcnow() is deprecated since Python 3.12 and returns a naive datetime. It is also not monotonic, so NTP adjustments or DST-independent clock changes can distort refill calculations. The code assumes the system clock never jumps. A time.monotonic() source, optionally injectable for tests, would be more robust and easier to test.",
+          "example": null,
+          "fix": "Use time.monotonic() (floats) or an injectable clock instead of datetime.utcnow().",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 19,
+          "category": "performance",
+          "severity": "minor",
+          "title": "Per-key bucket state is never evicted",
+          "explanation": "Every distinct key adds an entry to self._buckets that is never removed, even after the bucket has fully refilled. With many unique keys, such as client IPs, memory grows without bound.",
+          "example": null,
+          "fix": "Periodically purge buckets that would have refilled to capacity, or use a TTL/LRU structure.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 33,
+          "category": "readability",
+          "severity": "minor",
+          "title": "consume lacks a docstring and has undocumented edge behaviors",
+          "explanation": "Requests with tokens_to_consume <= 0 return True without touching state. Requests above capacity always return False. Neither is documented. The class also assumes single-threaded use, because the read-modify-write on _buckets is unsynchronized.",
+          "example": null,
+          "fix": "Document these behaviors and the thread-safety assumption, or add a lock.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 9.0,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5249,
+        "output": 826
+      },
+      "run": 2
+    },
+    {
+      "file": "rate_limiter.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 37,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated, non-monotonic wall clock used for elapsed time",
+          "explanation": "datetime.utcnow() is deprecated since Python 3.12 and returns a naive datetime. It follows the system clock, so NTP adjustments can make time jump. A backwards jump stops refilling for a while. A forward jump grants a burst of tokens. The code also assumes the clock is monotonic and cannot be injected, which makes it hard to test. time.monotonic() is the right tool for measuring intervals.",
+          "example": null,
+          "fix": "Use time.monotonic() and store floats, or accept an injectable clock function.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 19,
+          "category": "performance",
+          "severity": "minor",
+          "title": "Per-key state is never evicted",
+          "explanation": "Every distinct key stays in _buckets forever, including keys whose buckets have fully refilled. With many unique keys, such as client IPs, memory grows without bound. The assumption is that the key set is small.",
+          "example": null,
+          "fix": "Periodically remove buckets that would have refilled to capacity, or use a TTL or LRU cache.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 34,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Non-positive token requests silently succeed and the contract is undocumented",
+          "explanation": "consume() returns True for 0 or negative amounts without validating the input. Requests larger than capacity always return False with no signal. The docstring says nothing about either case, and consume has no docstring of its own. The class also assumes single-threaded use. The read-modify-write on _buckets is not atomic.",
+          "example": null,
+          "fix": "Document these behaviors, or raise ValueError for negative amounts. Add a lock if the class will be used from multiple threads.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 9.7,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "tokens": {
+        "input": 5249,
+        "output": 893
+      },
+      "run": 3
+    }
+  ],
+  "merged_from": [
+    {
+      "timestamp": "20261020-130656",
+      "git": {
+        "commit": "90d7970ed8001d082f9defb013dc17e6fd2b42bd",
+        "dirty": false
+      },
+      "files": [
+        "max_area.py",
+        "three_sum.py",
+        "palindrome.py",
+        "product_except_self.py",
+        "two_sum.py",
+        "user_utils.py",
+        "store.py"
+      ]
+    },
+    {
+      "timestamp": "20261022-120850",
+      "git": {
+        "commit": "49c311463d05808045773856de7449d627ca1f39",
+        "dirty": false
+      },
+      "files": [
+        "cart.py",
+        "cache.py",
+        "rbac.py",
+        "locks.py",
+        "rate_limiter.py"
+      ]
     }
   ]
 }
