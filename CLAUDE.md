@@ -26,7 +26,8 @@ pytest
 ```
 code_reviewer/
 ├── __main__.py      # CLI: check file exists → review_file() → print
-├── pipeline.py      # review_file(): run agent → verify each issue (shared by CLI and evals)
+├── pipeline.py      # review_file(): LangGraph StateGraph review → verify → (critic → verify)*
+├── critique.py      # which reports reach the critic, applying its decisions (no model)
 ├── config.py        # MODEL_NAME from env (REVIEWER_MODEL)
 ├── prompts.py       # REVIEWER_SYSTEM_PROMPT
 ├── schemas.py       # Issue, ReviewResult (Pydantic; the model sees field descriptions)
@@ -36,6 +37,7 @@ code_reviewer/
 │   ├── files.py     # resolve_repo_path(), read_file tool (line-numbered, repo-scoped)
 │   └── execution.py # run_python tool, run_test() + RUNNER script, exit codes
 └── agents/reviewer.py  # build_reviewer(): create_agent(model, tools, prompt, response_format)
+    agents/critic.py    # build_critic(): Opus, no tools, returns keep/drop/revise/split per report
 tests/               # unit tests for the deterministic code (no model calls)
 evals/               # (next) dataset + eval script measuring the model
 samples/             # example files for manual runs
@@ -78,6 +80,7 @@ The project can grow forever, so v1.0 is the finish line. It should show real, c
 2. Fix loop in LangGraph (roadmap stage 6, simple version): issues that were not proven (`not_reproduced`, `line_not_reached`, `test_error`, ...) go back to the reviewer with the result, so it fixes the test or drops the claim. At most 2 rounds.
 3. Stay with Sonnet for now and keep improving with it. Trying a cheaper model comes at the end, with other methods.
    Haiku run on max_area.py (2026-10-20): 77-192s per run, 9-64 run_python calls, up to 1.25M input tokens. Found the line 31 bug in 2/3 runs and reported correct line 25 as a bug in 2/3. One of those was `confirmed` only because its input also hit the line 31 bug: the line ran, so `line_not_reached` cannot catch it; testing against the fix would. Likely cause of the many calls: the prompt allows run_python "to explore" with no limit. Any cheaper-model attempt needs a cap on tool calls. Missing for a fair comparison: Sonnet time and tokens on the same file.
+   Critic (2026-10-22): a node after verify, Opus, called only for weak bug reports (test did not prove it, or the report hedges: optionally/consider). Readability notes never trigger it. Per report: keep (settles it, for unprovable bugs like the masked one in product_except_self), drop, revise, split. The critic writes the corrected report itself; code verifies it again. A report reaches the critic at most twice; the second time only if the critic's own version is still unproven. Sends the user's answers too. Critic tokens are recorded apart. Baseline signal check: about 5 of 48 reviews would trigger.
    Item 2 became "ask the user" (2026-10-22), after the 16-file baseline showed the model notes the right doubt (tax.py, pricing.py) but cannot resolve it. Design: an `ask_user` tool (LangGraph `interrupt`), at most 2 rounds per review, several questions per round; the user's answers are part of the contract. CLI asks in the terminal (`--no-questions` turns it off). The eval answers with a simulated user (Haiku) that knows the intent from questions.json but never the verdict, answers only what is asked, and says "I have no requirement about that" otherwise. Every question and answer is printed to check for leaks. Success: bugs found, correct code not reported, few questions on files with a clear contract.
 4. README with the results.
 

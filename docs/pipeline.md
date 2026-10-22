@@ -2,6 +2,21 @@
 
 How a file goes from the command line to a verified review, and how the eval uses the same path.
 
+## The review graph
+
+`review_file()` runs a LangGraph `StateGraph`. The critic is a second, stronger model, and only weak bug reports reach it.
+
+```mermaid
+flowchart TD
+    S([start]) --> R["review<br/>reviewer agent: read_file, run_python, ask_user"]
+    R --> V["verify<br/>run the test of every new report"]
+    V -- "a weak bug report:<br/>its test did not prove it, or it hedges" --> C["critic (Opus)<br/>keep / drop / revise / split"]
+    C --> V
+    V -- "nothing weak left,<br/>or each report saw the critic twice" --> E([end])
+```
+
+Regenerate the plain version from the code with `build_review_graph().get_graph().draw_mermaid()`.
+
 ## 1. Review
 
 ```mermaid

@@ -164,7 +164,7 @@ def test_isolated_repo_hides_other_files(tmp_path):
 
 
 def test_failed_run_is_recorded(monkeypatch, tmp_path):
-    def broken_review(file_path, answer_questions=None):
+    def broken_review(file_path, answer_questions=None, critic_model=None):
         raise RuntimeError("model returned invalid output")
 
     monkeypatch.setattr(run_eval, "review_file", broken_review)
@@ -181,7 +181,7 @@ def test_failed_run_is_recorded(monkeypatch, tmp_path):
 def test_stopped_eval_keeps_the_runs_that_finished(monkeypatch, tmp_path):
     calls = []
 
-    def review_then_stop(file_path, answer_questions=None):
+    def review_then_stop(file_path, answer_questions=None, critic_model=None):
         calls.append(file_path)
         if len(calls) == 2:
             raise KeyboardInterrupt  # like pressing Ctrl+C during the second run

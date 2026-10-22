@@ -59,3 +59,13 @@ def print_review(review: ReviewResult, verifications: list[Verification]) -> Non
         print("--- Claims that did not reproduce (likely false positives) ---\n")
         for issue, verification in rejected:
             print_issue(issue, verification)
+
+
+def print_critic(decisions: list[dict]) -> None:
+    """What the critic did with the weak bug reports, before the final review."""
+    if not decisions:
+        return
+    print("\nThe critic checked weak bug reports:")
+    for decision in decisions:
+        print(f"  round {decision['round']} · line {decision['line']} · {decision['action']} · {decision['title']}")
+        print(f"      {decision['reason']}")

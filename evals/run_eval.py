@@ -4,6 +4,7 @@ Usage:
     python -m evals.run_eval                    # run the reviewer, save and score
     python -m evals.run_eval --only a.py b.py   # run only these dataset files
     python -m evals.run_eval --no-questions     # the reviewer cannot ask the simulated user
+    python -m evals.run_eval --no-critic        # no critic for weak bug reports
     python -m evals.run_eval --rescore <json>   # score saved runs against current labels
     python -m evals.run_eval --reverify <json>  # also rerun the saved tests with current verification
 """
@@ -22,7 +23,7 @@ from pathlib import Path
 
 from langsmith import traceable
 
-from code_reviewer.config import MODELNAME
+from code_reviewer.config import CRITIC_MODEL, MODELNAME
 from code_reviewer.pipeline import review_file
 from code_reviewer.prompts import REVIEWER_SYSTEM_PROMPT
 from code_reviewer.schemas import Issue, ReviewResult
@@ -67,7 +68,7 @@ def isolated_repo(source: Path) -> Iterator[str]:
 
 
 @traceable(name="review case", process_inputs=lambda inputs: {"file": inputs["source"].name})
-def run_once(source: Path, points: list[dict] | None = None) -> dict:
+def run_once(source: Path, points: list[dict] | None = None, critic_model=CRITIC_MODEL) -> dict:
     """Review one file in isolation. A failure is recorded, never raised.
 
     points are the unclear spots the simulated user knows about. None means the
@@ -78,7 +79,7 @@ def run_once(source: Path, points: list[dict] | None = None) -> dict:
     start = time.perf_counter()
     try:
         with isolated_repo(source) as file_name:
-            outcome = review_file(file_name, answer_questions)
+            outcome = review_file(file_name, answer_questions, critic_model=critic_model)
     except Exception as error:
         record["error"] = f"{type(error).__name__}: {error}"
         return record
@@ -87,6 +88,9 @@ def run_once(source: Path, points: list[dict] | None = None) -> dict:
 
     record["tool_calls"] = outcome.tool_calls
     record["questions"] = outcome.questions
+    record["critic"] = outcome.critic
+    record["critic_rounds"] = outcome.critic_rounds
+    record["critic_tokens"] = outcome.critic_tokens
     record["tokens"] = outcome.tokens
     record["issues"] = [
         issue.model_dump() | {"verification": verification}
@@ -102,7 +106,11 @@ def describe(record: dict) -> str:
     tools = ", ".join(f"{name}×{count}" for name, count in record["tool_calls"].items())
     tokens = record["tokens"]
     asked = sum(len(exchange["questions"]) for exchange in record.get("questions", []))
-    return (f"{record['seconds']}s, {len(record['issues'])} issues, {asked} questions, "
+    critic = ""
+    if record.get("critic_rounds"):
+        ct = record["critic_tokens"]
+        critic = f"critic×{record['critic_rounds']} ({ct.get('input', 0)} in / {ct.get('output', 0)} out), "
+    return (f"{record['seconds']}s, {len(record['issues'])} issues, {asked} questions, {critic}"
             f"tools: {tools or 'none'}, tokens: {tokens.get('input', 0)} in / {tokens.get('output', 0)} out")
 
 
@@ -118,7 +126,8 @@ def to_run(record: dict) -> Run:
     # The simulated user answers this exact sentence when a question is off the unclear points.
     unanswered = sum(str(exchange["answers"]).lower().count(NO_REQUIREMENT.lower().rstrip("."))
                      for exchange in exchanges)
-    return Run(record["file"], issues, questions=asked, unanswered=unanswered)
+    return Run(record["file"], issues, questions=asked, unanswered=unanswered,
+               critic_rounds=record.get("critic_rounds", 0))
 
 
 def sha256(text: str) -> str:
@@ -142,7 +151,7 @@ def print_table(scores: list[FileScore]) -> None:
     short = {"all": "all", "confirmed": "conf", "confirmed+crashed": "c+cr"}
     cells = "".join(f"{short[level]:>7}" for level in LEVELS)
     print(f"{'':<24}{'recall':^21}  {'precision':^21}")
-    print(f"{'file':<24}{cells}  {cells}{'dup':>6}{'miscat':>8}{'fail':>6}{'q':>5}{'noreq':>7}")
+    print(f"{'file':<24}{cells}  {cells}{'dup':>6}{'miscat':>8}{'fail':>6}{'q':>5}{'noreq':>7}{'critic':>8}")
     for score in scores:
         recall = "".join(
             f"{format_ratio(c.found, c.expected):>7}" for c in score.levels.values()
@@ -153,7 +162,7 @@ def print_table(scores: list[FileScore]) -> None:
         )
         print(f"{score.file:<24}{recall}  {precision}"
               f"{score.duplicates:>6}{len(score.miscategorized):>8}{score.failed:>6}{score.questions:>5}"
-              f"{score.unanswered:>7}")
+              f"{score.unanswered:>7}{score.critic_rounds:>8}")
 
 
 def print_labels(labels: dict[str, list[Label]], scores: list[FileScore]) -> None:
@@ -170,6 +179,16 @@ def print_labels(labels: dict[str, list[Label]], scores: list[FileScore]) -> Non
                 continue
             print(f"{file}:{lines} [{label.category}] → found in {found}/{score.runs} runs "
                   f"({statuses})")
+
+
+def print_critic_decisions(records: list[dict]) -> None:
+    for record in records:
+        for decision in record.get("critic") or []:
+            print(f"critic: {record['file']} run {record['run']} round {decision['round']} line {decision['line']} "
+                  f"{decision['action']}: {decision['title']}")
+            print(f"  why: {decision['reason']}")
+            for title in decision["new"]:
+                print(f"  new: {title}")
 
 
 def print_questions(records: list[dict], unclear_files: set[str]) -> None:
@@ -216,6 +235,9 @@ def report(model: str, records: list[dict], labels: dict[str, list[Label]]) -> N
     print_labels(labels, scores)
     print()
     print_details(scores, [r for r in records if r["issues"] is None])
+    if any(r.get("critic") for r in records):
+        print()
+        print_critic_decisions(records)
     if any(r.get("questions") for r in records):
         print()
         print_questions(records, set(json.loads(QUESTIONS_PATH.read_text())))
@@ -263,13 +285,14 @@ def save(path: Path, result: dict) -> None:
         "results_file": inputs["path"].name,
     },
 )
-def run_all(sources: list[Path], result: dict, path: Path, questions: dict | None = None) -> None:
+def run_all(sources: list[Path], result: dict, path: Path, questions: dict | None = None,
+            critic_model=CRITIC_MODEL) -> None:
     """Review every source RUNS times. Saves after each run, so a stopped eval keeps its work."""
     for source in sources:
         for run in range(1, RUNS + 1):
             print(f"reviewing {source.name} (run {run}/{RUNS}) ... ", end="", flush=True)
             points = None if questions is None else questions.get(source.name, [])
-            record = run_once(source, points, langsmith_extra={
+            record = run_once(source, points, critic_model, langsmith_extra={
                 "name": f"{source.name} run {run}",
                 "metadata": {"file": source.name, "run": run, "model": MODELNAME},
             }) | {"run": run}
@@ -288,6 +311,8 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--only", nargs="+", metavar="FILE", help="run only these dataset files")
     parser.add_argument("--no-questions", action="store_true",
                         help="the reviewer cannot ask the simulated user questions")
+    parser.add_argument("--no-critic", action="store_true",
+                        help="do not send weak bug reports to the critic model")
     return parser.parse_args()
 
 
@@ -317,6 +342,7 @@ def main() -> None:
         "dataset_sha256": {source.name: sha256(source.read_text()) for source in sources},
         "labels": raw_labels,
         "questions_enabled": not args.no_questions,
+        "critic_model": None if args.no_critic else CRITIC_MODEL,
         "complete": False,
         "runs": [],
     }
@@ -324,7 +350,7 @@ def main() -> None:
     path = RESULTS_DIR / f"{timestamp}.json"
 
     questions = None if args.no_questions else json.loads(QUESTIONS_PATH.read_text())
-    run_all(sources, result, path, questions, langsmith_extra={
+    run_all(sources, result, path, questions, None if args.no_critic else CRITIC_MODEL, langsmith_extra={
         "metadata": {"model": MODELNAME, "runs_per_file": RUNS, "results_file": path.name},
         "tags": ["eval", MODELNAME],
     })
