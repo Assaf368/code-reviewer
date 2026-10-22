@@ -1,9 +1,9 @@
 {
-  "timestamp": "20261022-132702",
+  "timestamp": "20261022-141147",
   "model": "anthropic:claude-sonnet-5-5",
   "runs_per_file": 3,
   "git": {
-    "commit": "a9201d4cdae6f6c9b1a485b0eb09310d4fc0068d",
+    "commit": "4c43c4d069c63bf5f84461a8b36f20c79b56c4fb",
     "dirty": false
   },
   "prompt_sha256": "eef4ca0f82a9fddb785e6e0f4301ffb899b638e4c1ab78aa0f54de6fe3c49fc1",
@@ -202,6 +202,7 @@
     ]
   },
   "questions_enabled": true,
+  "critic_model": "anthropic:claude-opus-5-5",
   "complete": true,
   "runs": [
     {
@@ -212,24 +213,27 @@
           "line": 31,
           "category": "bug",
           "severity": "critical",
-          "title": "Wrong comparison when moving the left pointer skips valid containers",
-          "explanation": "After `left += 1`, the code compares `nums[left]` with `nums[right - 1]`. The right-pointer branch on line 25 compares the new line with the one it just left, `nums[right + 1]`. The left branch should do the same and compare with `nums[left - 1]`. As written, it can set `calc_area_flag` to False for a line that is taller than the previous one, so a better container is never evaluated. The function then returns too small a value.",
-          "example": "max_area([0, 2, 5]) returns 0, but the correct answer is 2, from the lines at positions 1 and 2.",
-          "fix": "Use `if nums[left] <= nums[left - 1]:` on line 31. Alternatively, drop the flag and always compute the area.",
-          "test_code": "assert max_area([0, 2, 5]) == 2, max_area([0, 2, 5])",
+          "title": "Wrong comparison when advancing left pointer skips valid containers",
+          "explanation": "After `left += 1`, the code should compare the new left height with the previous left height, `nums[left-1]`. It compares it with `nums[right-1]` instead. That is unrelated to the skip optimization and can wrongly set `calc_area_flag` to False, so the best container is never evaluated. The right-pointer branch on line 25 does this correctly, using `nums[right+1]`. A random comparison with brute force found about 10% of small inputs returning wrong results.",
+          "example": "max_area([0, 1, 1, 6]) returns 0, but the correct answer is 2. Likewise, max_area([1, 3, 4, 2, 6, 4]) returns 8 but the correct answer is 12.",
+          "fix": "Use `if nums[left] <= nums[left - 1]:`. Alternatively, drop the flag and always compute the area.",
+          "test_code": "assert max_area([0, 1, 1, 6]) == 2, max_area([0, 1, 1, 6])\nassert max_area([1, 3, 4, 2, 6, 4]) == 12, max_area([1, 3, 4, 2, 6, 4])",
           "untestable_reason": null,
           "verification": "confirmed"
         }
       ],
-      "seconds": 10.8,
+      "seconds": 12.5,
       "tool_calls": {
         "read_file": 1,
         "run_python": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 9323,
-        "output": 802
+        "input": 9414,
+        "output": 951
       },
       "run": 1
     },
@@ -241,24 +245,27 @@
           "line": 31,
           "category": "bug",
           "severity": "critical",
-          "title": "Wrong comparison when moving the left pointer skips valid areas",
-          "explanation": "After `left += 1`, the code compares `nums[left]` with `nums[right - 1]`. The right-pointer branch compares the new line with the one just removed, so this should compare with `nums[left - 1]`. The wrong comparison sets `calc_area_flag` to False when the new left line is tall enough to give a larger area. That area is never evaluated, so the function returns a result that is too small.",
-          "example": "max_area([1, 6, 6]) returns 2, but the correct answer is 6, from the two lines of height 6 at distance 1.",
-          "fix": "Change the condition to `if nums[left] <= nums[left - 1]:`. Alternatively, remove the flag and compute the area on every iteration.",
-          "test_code": "assert max_area([1, 6, 6]) == 6, max_area([1, 6, 6])",
+          "title": "Wrong neighbour compared after moving the left pointer, so valid containers are skipped",
+          "explanation": "After `left += 1`, the skip check compares `nums[left]` with `nums[right - 1]`. It should compare it with the line just left behind, `nums[left - 1]`. The right-pointer branch does this correctly: it compares `nums[right]` with `nums[right + 1]`. The wrong comparison sets `calc_area_flag` to False when it should be True, so the next area is never calculated. The function can then return a value smaller than the true maximum.",
+          "example": "max_area([1, 4, 6, 5]) returns 3, but the correct answer is 8, from the lines at indices 1 and 3 (min(4,5) * 2 = 8). max_area([1, 2, 2, 3]) returns 3, but the correct answer is 4.",
+          "fix": "Change the check to `if nums[left] <= nums[left - 1]:`. Alternatively, drop the flag and compute the area on every iteration.",
+          "test_code": "assert max_area([1, 4, 6, 5]) == 8, max_area([1, 4, 6, 5])\nassert max_area([1, 2, 2, 3]) == 4, max_area([1, 2, 2, 3])",
           "untestable_reason": null,
           "verification": "confirmed"
         }
       ],
-      "seconds": 10.4,
+      "seconds": 13.2,
       "tool_calls": {
         "read_file": 1,
-        "run_python": 1
+        "run_python": 2
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 9449,
-        "output": 881
+        "input": 13406,
+        "output": 1028
       },
       "run": 2
     },
@@ -270,24 +277,27 @@
           "line": 31,
           "category": "bug",
           "severity": "critical",
-          "title": "Wrong neighbour compared when skipping after moving the left pointer",
-          "explanation": "After `left += 1`, the code compares `nums[left]` with `nums[right - 1]`. It should compare it with the line it just left, `nums[left - 1]`. This mirrors the right-pointer branch, which correctly compares `nums[right]` with `nums[right + 1]`. Because of this, `calc_area_flag` is wrongly set to False and valid candidate areas are skipped. The function then returns a result that is too small.",
-          "example": "max_area([0, 1, 2, 5, 2]) returns 2, but the correct answer is 4, from the lines at indices 1 and 4 (height 1, width 3) or at indices 2 and 4 (height 2, width 2).",
-          "fix": "Use `if nums[left] <= nums[left - 1]:` so a candidate is skipped only when the new left line is no taller than the previous one.",
-          "test_code": "r = max_area([0, 1, 2, 5, 2])\nassert r == 4, r",
+          "title": "Left-pointer skip check compares against the wrong element",
+          "explanation": "After `left += 1`, the code should skip the area calculation only if the new left line is not taller than the old one, `nums[left-1]`. It compares with `nums[right-1]` instead, which is unrelated. The area calculation is skipped for candidate pairs that could be the best, so the result is too small. The right-pointer branch on line 25 correctly compares with the previous right element.",
+          "example": "max_area([0, 1, 1]) returns 0, but the correct answer is 1 (lines 1 and 2, width 1, height 1).",
+          "fix": "Change the condition to `if nums[left] <= nums[left - 1]:`. Alternatively, drop the flag and compute the area on every iteration.",
+          "test_code": "assert max_area([0, 1, 1]) == 1, max_area([0, 1, 1])",
           "untestable_reason": null,
           "verification": "confirmed"
         }
       ],
-      "seconds": 11.0,
+      "seconds": 12.0,
       "tool_calls": {
         "read_file": 1,
-        "run_python": 1
+        "run_python": 2
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 9416,
-        "output": 872
+        "input": 13342,
+        "output": 959
       },
       "run": 3
     },
@@ -298,12 +308,12 @@
         {
           "line": 18,
           "category": "bug",
-          "severity": "critical",
-          "title": "Duplicate triplets returned: no duplicate skipping for left/right after a match",
-          "explanation": "The docstring says the result must not contain the same triplet twice. Only the outer index `i` skips duplicate values. After a match, `left` and `right` move by one and do not skip equal values. Repeated values in the middle of the array therefore produce the same triplet more than once.",
+          "severity": "major",
+          "title": "Duplicate triplets returned because left/right are not advanced past equal values",
+          "explanation": "After a match, left and right each move by one. They do not skip values equal to the ones just used. Only the outer index `i` skips duplicates. When nums has repeated values, the same triplet is appended more than once. This breaks the docstring rule that the result must not contain the same triplet twice.",
           "example": "three_sum([-2, 0, 0, 2, 2], 0) returns [[0, 2, -2], [0, 2, -2]]",
-          "fix": "After recording a match, advance `left` while nums[left] == nums[left-1] (with left < right). Also move `right` down while nums[right] == nums[right+1].",
-          "test_code": "res = three_sum([-2, 0, 0, 2, 2], 0)\nnorm = [tuple(sorted(t)) for t in res]\nassert len(norm) == len(set(norm)), res",
+          "fix": "After appending, advance `left` while nums[left] == nums[left-1] and left < right. Or collect the triplets as sorted tuples in a set.",
+          "test_code": "r = three_sum([-2, 0, 0, 2, 2], 0)\nassert len({tuple(sorted(t)) for t in r}) == len(r), r\nassert len(r) == 1, r",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -312,22 +322,25 @@
           "category": "readability",
           "severity": "minor",
           "title": "Input list is sorted in place",
-          "explanation": "`nums.sort()` mutates the caller's list. The docstring does not say whether the input may be modified, so this is a side effect that callers may not expect, not a bug.",
+          "explanation": "`nums.sort()` mutates the caller's list. The docstring does not promise the input is left unchanged, so this is not reported as a bug. It could still surprise callers who assume the list is untouched.",
           "example": null,
-          "fix": "Use `nums = sorted(nums)` to leave the caller's list unchanged.",
+          "fix": "Use `nums = sorted(nums)`.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 8.5,
+      "seconds": 7.5,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5694,
-        "output": 679
+        "output": 652
       },
       "run": 1
     },
@@ -340,10 +353,10 @@
           "category": "bug",
           "severity": "critical",
           "title": "Duplicate triplets returned after a match",
-          "explanation": "After a match, left and right each move one step. They don't skip over repeated values. Duplicate values on either side therefore produce the same triplet again. The docstring says the result must not contain the same triplet twice. Only the outer index `i` is de-duplicated.",
+          "explanation": "After a match, left and right each move one step. They do not skip over equal neighbouring values. When nums has repeated values, the same triplet is appended more than once. The docstring says the result must not contain the same triplet twice.",
           "example": "three_sum([-2,0,0,2,2], 0) returns [[0, 2, -2], [0, 2, -2]]",
-          "fix": "After recording a match, advance left while nums[left] == nums[left-1], and decrease right while nums[right] == nums[right+1]. Alternatively, collect the triplets in a set of tuples.",
-          "test_code": "res = three_sum([-2,0,0,2,2], 0)\nassert len(res) == 1, res\nassert len({tuple(sorted(t)) for t in res}) == len(res), res",
+          "fix": "After recording a match and moving the pointers, advance left while nums[left] == nums[left-1] and left < right. You can also move right past duplicates in the same way. Alternatively, store sorted tuples in a set.",
+          "test_code": "r = three_sum([-2,0,0,2,2], 0)\nassert len({tuple(sorted(t)) for t in r}) == len(r), r\nassert len(r) == 1, r",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -352,9 +365,9 @@
           "category": "readability",
           "severity": "minor",
           "title": "Input list is sorted in place",
-          "explanation": "The function assumes the caller doesn't mind nums being mutated. The docstring doesn't mention this. Using sorted(nums) would avoid the side effect.",
+          "explanation": "The function assumes the caller doesn't mind nums being mutated. The docstring doesn't say it sorts the caller's list in place, so callers may be surprised.",
           "example": null,
-          "fix": "Use nums = sorted(nums) at the start of the function.",
+          "fix": "Use nums = sorted(nums) instead of nums.sort().",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
@@ -366,9 +379,12 @@
         "run_python": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 8995,
-        "output": 662
+        "input": 8997,
+        "output": 658
       },
       "run": 2
     },
@@ -377,14 +393,14 @@
       "error": null,
       "issues": [
         {
-          "line": 18,
+          "line": 17,
           "category": "bug",
           "severity": "critical",
-          "title": "Duplicate triplets returned: left/right duplicates not skipped after a match",
-          "explanation": "After a match, left and right each move by one position without skipping equal values. Only the outer index i skips duplicates. With repeated values, the same triplet is appended more than once. This breaks the docstring rule that the result must not contain the same triplet twice.",
+          "title": "Duplicate triplets returned: duplicates are not skipped after a match",
+          "explanation": "Only the outer index `i` skips duplicate values. After a match, `left` and `right` just move by one. If nums has repeated values at the left or right positions, the same triplet is appended again. This breaks the contract that the result must not contain the same triplet twice.",
           "example": "three_sum([-2, 0, 0, 2, 2], 0) returns [[0, 2, -2], [0, 2, -2]]",
-          "fix": "After appending, advance left while nums[left] == nums[left-1] and left < right. Also move right down while nums[right] == nums[right+1] and left < right. Alternatively, store sorted tuples in a set.",
-          "test_code": "r = three_sum([-2, 0, 0, 2, 2], 0)\nassert len(r) == 1, r\nr2 = three_sum([0, 0, 0, 0], 0)\nassert len(r2) == 1, r2",
+          "fix": "After recording a match, advance `left` while nums[left] == nums[left-1] and left < right. Optionally do the same for `right`.",
+          "test_code": "res = three_sum([-2, 0, 0, 2, 2], 0)\nassert len({tuple(sorted(t)) for t in res}) == len(res), res\nassert len(res) == 1, res\nres = three_sum([0, 0, 0, 0, 0], 0)\nassert len(res) == 1, res",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -393,22 +409,37 @@
           "category": "readability",
           "severity": "minor",
           "title": "Input list is sorted in place",
-          "explanation": "nums.sort() mutates the caller's list. This assumes callers don't mind their list being reordered, and the docstring doesn't mention it.",
+          "explanation": "This assumes the caller doesn't mind `nums` being reordered. The docstring doesn't mention this side effect, so it may surprise callers.",
           "example": null,
-          "fix": "Use nums = sorted(nums), or document the mutation.",
+          "fix": "Use `nums = sorted(nums)`, or document the mutation.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 8.2,
+      "seconds": 13.3,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [
+        {
+          "round": 1,
+          "line": 17,
+          "title": "Duplicate triplets returned: duplicates are not skipped after a match",
+          "action": "keep",
+          "reason": "The bug is real and the test confirms it: [-2,0,0,2,2] yields [0,2,-2] twice. The 'optionally' hedge is harmless, because skipping duplicate left values alone is enough to prevent duplicate triplets once i is fixed.",
+          "new": []
+        }
+      ],
+      "critic_rounds": 1,
+      "critic_tokens": {
+        "input": 2552,
+        "output": 263
+      },
       "tokens": {
         "input": 5694,
-        "output": 650
+        "output": 744
       },
       "run": 3
     },
@@ -417,26 +448,30 @@
       "error": null,
       "issues": [
         {
-          "line": 15,
+          "line": 16,
           "category": "bug",
           "severity": "critical",
           "title": "Returns False when the remaining characters are all non-alphanumeric",
-          "explanation": "When the left pointer reaches the right pointer while still on a skipped character, the code returns False. It should return True, because nothing is left to compare. So \"a!!a\" fails: after the outer a's match, the remaining \"!!\" makes the function return False. A string with no letters or digits, such as \"!!\", also returns False, which contradicts the docstring. The same check on line 21 has the same problem.",
-          "example": "is_palindrome(\"a!!a\") and is_palindrome(\"!!\")",
-          "fix": "Return True instead of False when left_index >= right_index in both inner loops. A cleaner option is to guard the inner loops with `left_index < right_index and not word[left_index].isalnum()` and then re-check the outer loop condition.",
-          "test_code": "assert is_palindrome(\"a!!a\") is True, is_palindrome(\"a!!a\")\nassert is_palindrome(\"!!\") is True, is_palindrome(\"!!\")\nassert is_palindrome(\"\") is True",
+          "explanation": "When the left pointer meets the right pointer while skipping non-alphanumeric characters, the code returns False. It should return True, because nothing is left to compare. The docstring says a string with no letters or digits is a palindrome. The same flaw affects strings with a non-alphanumeric middle, such as 'a!!a'. The same mistake is at line 22, but it is one bug. Fixing line 16 alone leaves line 22 returning False in some cases, so both lines must change together.",
+          "example": "is_palindrome('!!') returns False; is_palindrome('a!!a') returns False; is_palindrome('  ') returns False",
+          "fix": "Return True instead of False in both inner loops, or rewrite the loops as `while left_index < right_index and not word[left_index].isalnum(): left_index += 1`, and the same for the right index. Then compare only if left_index < right_index.",
+          "test_code": "assert is_palindrome('!!') is True, is_palindrome('!!')\nassert is_palindrome('  ') is True, is_palindrome('  ')\nassert is_palindrome('a!!a') is True, is_palindrome('a!!a')\nassert is_palindrome('') is True",
           "untestable_reason": null,
           "verification": "confirmed"
         }
       ],
-      "seconds": 13.6,
+      "seconds": 14.3,
       "tool_calls": {
-        "read_file": 1
+        "read_file": 1,
+        "run_python": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 5731,
-        "output": 1281
+        "input": 9374,
+        "output": 1099
       },
       "run": 1
     },
@@ -448,23 +483,26 @@
           "line": 15,
           "category": "bug",
           "severity": "critical",
-          "title": "Returns False when the remaining middle section has no alphanumerics",
-          "explanation": "When the pointers meet inside a run of skipped characters, the code returns False. The docstring says skipped characters are ignored, so the remaining middle section is empty and the result should be True. The right-hand loop at line 21 has the same early return. Both come from the same mistake, and the fix is to return True there.",
-          "example": "is_palindrome(\"a!!a\") returns False. So do is_palindrome(\"!!\") and is_palindrome(\"ab, ,ba\").",
-          "fix": "Return True instead of False in both inner loops when left_index >= right_index. Alternatively, add `left_index < right_index` to the inner while conditions and let the outer loop end.",
-          "test_code": "assert is_palindrome(\"a!!a\") is True, is_palindrome(\"a!!a\")\nassert is_palindrome(\"!!\") is True, is_palindrome(\"!!\")\nassert is_palindrome(\"ab, ,ba\") is True, is_palindrome(\"ab, ,ba\")",
+          "title": "Returns False when the remaining middle is only non-alphanumeric characters",
+          "explanation": "The docstring says non-alphanumeric characters are skipped and a string with no letters or digits is a palindrome. When the left pointer meets the right pointer while skipping, the code returns False. That is the case where nothing is left to compare, so it should return True. The result is wrong for \"!!\", for \"a!!a\" and for any palindrome whose centre is two or more punctuation characters.",
+          "example": "is_palindrome(\"!!\") returns False. is_palindrome(\"a!!a\") returns False.",
+          "fix": "Return True instead of False when left_index >= right_index inside the skip loops. Better, rewrite the loops as `while left_index < right_index and not word[left_index].isalnum(): left_index += 1`, and the same for the right side. Then compare only if left_index < right_index.",
+          "test_code": "assert is_palindrome(\"!!\") is True, is_palindrome(\"!!\")\nassert is_palindrome(\"a!!a\") is True, is_palindrome(\"a!!a\")\nassert is_palindrome(\", ,\") is True, is_palindrome(\", ,\")",
           "untestable_reason": null,
           "verification": "confirmed"
         }
       ],
-      "seconds": 10.5,
+      "seconds": 10.8,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5731,
-        "output": 928
+        "output": 949
       },
       "run": 2
     },
@@ -473,26 +511,30 @@
       "error": null,
       "issues": [
         {
-          "line": 16,
+          "line": 15,
           "category": "bug",
-          "severity": "major",
+          "severity": "critical",
           "title": "Strings with two or more non-alphanumeric characters and no letters or digits return False",
-          "explanation": "The docstring says a string with no letters or digits is a palindrome. When the skip loops meet without finding an alphanumeric character, the code returns False instead of True. The same early return at line 22 has the same problem.",
-          "example": "is_palindrome(\"!!\") returns False. is_palindrome(\", \") and is_palindrome(\"...\") also return False.",
-          "fix": "Replace the inner skip loops with `while left_index < right_index and not word[left_index].isalnum(): left_index += 1`, and do the same for the right index. After both loops, `break` or return True if `left_index >= right_index`.",
-          "test_code": "assert is_palindrome(\"!!\") is True, is_palindrome(\"!!\")\nassert is_palindrome(\", \") is True, is_palindrome(\", \")\nassert is_palindrome(\"...\") is True, is_palindrome(\"...\")",
+          "explanation": "The docstring says a string with no letters or digits counts as a palindrome. In the left-skip loop, the pointers meet while the scan is still on a non-alphanumeric character. The code then returns False instead of True. The right-skip loop at line 21 has the same check. A single character such as ' ' returns True only because the outer loop never runs.",
+          "example": "is_palindrome(\"!!\") returns False; the correct result is True",
+          "fix": "When the pointers meet or cross during skipping, return True instead of False. A cleaner approach is to advance each pointer with `while left < right and not word[left].isalnum()` and then compare.",
+          "test_code": "assert is_palindrome(\"!!\") is True, is_palindrome(\"!!\")\nassert is_palindrome(\".,\") is True, is_palindrome(\".,\")",
           "untestable_reason": null,
           "verification": "confirmed"
         }
       ],
-      "seconds": 10.4,
+      "seconds": 12.8,
       "tool_calls": {
-        "read_file": 1
+        "read_file": 1,
+        "run_python": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 5731,
-        "output": 875
+        "input": 9482,
+        "output": 994
       },
       "run": 3
     },
@@ -504,11 +546,11 @@
           "line": 6,
           "category": "bug",
           "severity": "critical",
-          "title": "Result lists are created empty, so every call raises IndexError",
-          "explanation": "`[] * n` is `[]`, not a list of length n. The first assignment `left_results[i] = ...` raises IndexError. The prefix and suffix arrays also need a base value of 1, and an empty list can't supply it. The same mistake is repeated on lines 7 and 8, but these lines must be fixed together.",
+          "title": "Result lists are created empty, so indexed assignment raises IndexError",
+          "explanation": "`[] * len(nums)` is still `[]`. `left_results[i] = ...` therefore raises IndexError on the first assignment. The same mistake is on lines 7 and 8. The lists should be `[1] * n`, so that the base values `left_results[0]` and `right[n-1]` are 1.",
           "example": "product_except_self([1, 2, 3, 4])",
-          "fix": "Use `left_results = [1] * len(nums)`, `right_results = [1] * len(nums)` and `results = [1] * len(nums)`.",
-          "test_code": "assert product_except_self([1, 2, 3, 4]) == [24, 12, 8, 6]",
+          "fix": "Use `left_results = [1] * len(nums)`, and the same for `right_results` and `results`.",
+          "test_code": "r = product_except_self([1, 2, 3, 4])\nassert r == [24, 12, 8, 6], r",
           "untestable_reason": null,
           "verification": "crashed"
         },
@@ -516,11 +558,66 @@
           "line": 16,
           "category": "bug",
           "severity": "critical",
-          "title": "Wrong boundary check in the right-to-left loop reads out of range",
-          "explanation": "The loop starts at i = len(nums)-1, but the guard tests `i == len(nums)`, which is never true. For i = n-1 the code reads `right_reuslts[n]` and `nums[n]`, which raises IndexError even if the lists were initialized correctly. The guard should skip i == n-1, or the loop should start at n-2.",
-          "example": "product_except_self([2, 3]) after the initialization is fixed to use [1]*n",
-          "fix": "Loop `for i in range(len(nums) - 2, -1, -1)` and drop the dead check.",
-          "test_code": "import re\nsrc = open(__file__).read() if '__file__' in globals() else ''\n# Behavioral check: correct code returns the right answer for a 2-element input\nassert product_except_self([2, 3]) == [3, 2]",
+          "title": "Wrong sentinel check in the right pass causes an out-of-range access",
+          "explanation": "The loop starts at i = n-1, but the guard tests `i == len(nums)`, which is never true. At i = n-1 the code reads `right_reuslts[n]` and `nums[n]`, which raises IndexError even if the lists are initialized correctly. The guard should be `i == len(nums) - 1`, or the loop should start at n-2. The name `right_reuslts` is also misspelled.",
+          "example": "product_except_self([2, 3])",
+          "fix": "Loop `for i in range(n - 2, -1, -1)` and drop the dead check. Initialize the right list with 1s.",
+          "test_code": "import re\nsrc = open(__file__).read() if '__file__' in globals() else ''\n# Same crash even with correct initialization of the lists: emulate by patching list multiplication\ndef fixed(nums):\n    n = len(nums)\n    left = [1] * n\n    right = [1] * n\n    for i in range(1, n):\n        left[i] = left[i - 1] * nums[i - 1]\n    for i in range(n - 1, -1, -1):\n        if i == len(nums):\n            continue\n        right[i] = right[i + 1] * nums[i + 1]\n    return [l * r for l, r in zip(left, right)]\nassert product_except_self([2, 3]) == [3, 2], 'expected [3, 2]'",
+          "untestable_reason": null,
+          "verification": "line_not_reached"
+        }
+      ],
+      "seconds": 18.1,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "questions": [],
+      "critic": [
+        {
+          "round": 1,
+          "line": 16,
+          "title": "Wrong sentinel check in the right pass causes an out-of-range access",
+          "action": "keep",
+          "reason": "The bug is real: the guard `i == len(nums)` is never true, so at i = n-1 the code reads `right_reuslts[n]` and `nums[n]` and raises IndexError. No test can reach that line, because the empty-list initializations on lines 6-8 make line 13 raise IndexError first for any valid input.",
+          "new": []
+        }
+      ],
+      "critic_rounds": 1,
+      "critic_tokens": {
+        "input": 2727,
+        "output": 557
+      },
+      "tokens": {
+        "input": 5675,
+        "output": 1124
+      },
+      "run": 1
+    },
+    {
+      "file": "product_except_self.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 6,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Result lists are created empty, so indexed assignment raises IndexError",
+          "explanation": "`[] * n` is still `[]`. `left_results[i] = ...` and `results[i] = ...` therefore fail with IndexError. The prefix and suffix lists also need a starting value of 1 at the boundary element, and the code never sets one. The function crashes on every valid input.",
+          "example": "product_except_self([1, 2, 3, 4]) raises IndexError: list index out of range",
+          "fix": "Initialize with `[1] * len(nums)` for left_results, right_results and results.",
+          "test_code": "assert product_except_self([1, 2, 3, 4]) == [24, 12, 8, 6], 'crashed or wrong'",
+          "untestable_reason": null,
+          "verification": "crashed"
+        },
+        {
+          "line": 16,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Right-pass loop skips the wrong index and reads past the end",
+          "explanation": "The loop starts at i = len(nums)-1, but the guard checks `i == len(nums)`, which is never true. At i = n-1 the code reads `right_reuslts[n]` and `nums[n]`, which raises IndexError. Fixing the list initialization on lines 6-8 does not fix this. The guard should be `i == len(nums)-1`, or the loop should start at n-2.",
+          "example": "product_except_self([2, 3]) raises IndexError even after the lists are initialized to [1]*n",
+          "fix": "Loop `for i in range(len(nums) - 2, -1, -1):` and compute `right[i] = right[i+1] * nums[i+1]`.",
+          "test_code": "assert product_except_self([2, 3]) == [3, 2], product_except_self([2, 3])",
           "untestable_reason": null,
           "verification": "line_not_reached"
         },
@@ -529,76 +626,38 @@
           "category": "readability",
           "severity": "minor",
           "title": "Typo in variable name `right_reuslts`",
-          "explanation": "The name is misspelled, which makes the code harder to read and search.",
+          "explanation": "The misspelling makes the code harder to read and search.",
           "example": null,
-          "fix": "Rename it to `right_results`.",
+          "fix": "Rename to `right_results`.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 10.8,
+      "seconds": 15.5,
       "tool_calls": {
         "read_file": 1,
         "run_python": 1
       },
       "questions": [],
-      "tokens": {
-        "input": 9102,
-        "output": 977
-      },
-      "run": 1
-    },
-    {
-      "file": "product_except_self.py",
-      "error": null,
-      "issues": [
+      "critic": [
         {
-          "line": 6,
-          "category": "bug",
-          "severity": "critical",
-          "title": "Result lists are built empty, so every call raises IndexError",
-          "explanation": "`[] * len(nums)` is still `[]`. The first indexed assignment, `left_results[i] = ...`, raises IndexError. The lists also need a starting value of 1, because `left_results[0]` and the last right product are empty products. `right_reuslts` and `results` on lines 7\u20138 have the same problem. They are fixed by the same change, so I'm reporting them as one bug.",
-          "example": "product_except_self([1, 2, 3, 4]) raises IndexError: list index out of range",
-          "fix": "Use `left_results = [1] * len(nums)`, `right_results = [1] * len(nums)` and `results = [1] * len(nums)`.",
-          "test_code": "r = product_except_self([1, 2, 3, 4])\nassert r == [24, 12, 8, 6], r",
-          "untestable_reason": null,
-          "verification": "crashed"
-        },
-        {
-          "line": 15,
-          "category": "bug",
-          "severity": "critical",
-          "title": "Right-product loop starts at the last index and reads past the end",
-          "explanation": "The loop starts at `i = len(nums) - 1` and reads `right_reuslts[i + 1]` and `nums[i + 1]`, which are out of range. The guard `i == len(nums)` can never be true, because `i` never reaches `len(nums)`. The loop should start at `len(nums) - 2`. Fixing the list initialization alone would still raise IndexError here.",
-          "example": "With the lists initialized to [1]*n, product_except_self([2, 3]) still raises IndexError at i=1.",
-          "fix": "Iterate `for i in range(len(nums) - 2, -1, -1)` and remove the dead guard.",
-          "test_code": "r = product_except_self([2, 3])\nassert r == [3, 2], r",
-          "untestable_reason": null,
-          "verification": "line_not_reached"
-        },
-        {
-          "line": 7,
-          "category": "readability",
-          "severity": "minor",
-          "title": "Misspelled variable name and unused loop variable",
-          "explanation": "`right_reuslts` is a typo for `right_results`. The `num` loop variable on line 10 is unused, and the `if i == 0: continue` pattern is clumsy.",
-          "example": null,
-          "fix": "Rename it to `right_results` and iterate with `range(1, len(nums))`.",
-          "test_code": null,
-          "untestable_reason": null,
-          "verification": "not_tested"
+          "round": 1,
+          "line": 16,
+          "title": "Right-pass loop skips the wrong index and reads past the end",
+          "action": "keep",
+          "reason": "The guard `i == len(nums)` can never be true, so at i = n-1 the loop reads index n and goes out of range. This is a separate bug from the empty-list initialization. A test cannot reach line 16 because line 13 always raises IndexError first for any valid input (at least two elements).",
+          "new": []
         }
       ],
-      "seconds": 11.7,
-      "tool_calls": {
-        "read_file": 1,
-        "run_python": 1
+      "critic_rounds": 1,
+      "critic_tokens": {
+        "input": 2513,
+        "output": 250
       },
-      "questions": [],
       "tokens": {
-        "input": 9134,
-        "output": 1113
+        "input": 9106,
+        "output": 966
       },
       "run": 2
     },
@@ -610,23 +669,23 @@
           "line": 6,
           "category": "bug",
           "severity": "critical",
-          "title": "Result lists are created empty, so every call crashes with IndexError",
-          "explanation": "`[] * n` is `[]`, not a list of n elements. The later indexed assignments, such as `left_results[i] = ...` on line 13, raise IndexError. The function fails for every valid input. The same mistake is on lines 7 and 8. The lists also need initial values of 1 for the prefix and suffix products.",
-          "example": "product_except_self([1,2,3,4])",
-          "fix": "Use `left_results = [1] * len(nums)`, `right_results = [1] * len(nums)` and `results = [1] * len(nums)`.",
-          "test_code": "assert product_except_self([1,2,3,4]) == [24,12,8,6], product_except_self([1,2,3,4])",
+          "title": "Result lists are created empty, so every index assignment raises IndexError",
+          "explanation": "`[] * n` is still `[]`. `left_results`, `right_reuslts` and `results` all have length 0. The first `left_results[i - 1]` read at line 13 and the `results[i] = ...` write at line 22 both raise IndexError. The prefix and suffix base cases, `left_results[0]` and `right_reuslts[n-1]`, must also be 1. An empty list can't hold them, and 0 would make every product 0.",
+          "example": "product_except_self([1, 2, 3]) raises IndexError: list index out of range",
+          "fix": "Initialize with `left_results = [1] * len(nums)`, `right_results = [1] * len(nums)` and `results = [1] * len(nums)`.",
+          "test_code": "r = product_except_self([1, 2, 3, 4])\nassert r == [24, 12, 8, 6], r",
           "untestable_reason": null,
           "verification": "crashed"
         },
         {
-          "line": 15,
+          "line": 16,
           "category": "bug",
           "severity": "critical",
-          "title": "Right-product loop starts at the last index and reads out of bounds",
-          "explanation": "The loop starts at i = len(nums)-1 and reads `nums[i+1]` and `right_reuslts[i+1]`, which are out of range. The guard `i == len(nums)` can never be true because i never reaches len(nums). The loop should start at len(nums)-2. This would raise IndexError even if the lists were initialized correctly.",
-          "example": "product_except_self([2,3])",
-          "fix": "Iterate `for i in range(len(nums) - 2, -1, -1)` and remove the dead guard.",
-          "test_code": "assert product_except_self([2,3]) == [3,2], product_except_self([2,3])",
+          "title": "Wrong sentinel in the right-to-left loop causes an out-of-range access",
+          "explanation": "The loop starts at `len(nums) - 1`, but the guard checks `i == len(nums)`, which is never true. On the first iteration line 19 reads `right_reuslts[i + 1]` and `nums[i + 1]` with i = n-1, which is out of range. Fixing the list initialization does not fix this. The guard should skip i == n-1, or the loop should start at n-2.",
+          "example": "With the lists initialized to `[1]*n`, product_except_self([2, 3]) still raises IndexError at `nums[i + 1]`.",
+          "fix": "Use `for i in range(len(nums) - 2, -1, -1):` and remove the dead `if i == len(nums)` check.",
+          "test_code": "import re\nsrc = open(__file__).read() if '__file__' in globals() else ''\n# Property test: patch initialization to isolate the right-loop bug is not possible here, so test the behavior directly\nr = product_except_self([2, 3])\nassert r == [3, 2], r",
           "untestable_reason": null,
           "verification": "line_not_reached"
         },
@@ -634,24 +693,39 @@
           "line": 7,
           "category": "readability",
           "severity": "minor",
-          "title": "Typo in variable name and unnecessary arrays",
-          "explanation": "`right_reuslts` is misspelled. Three separate arrays are also used where one result array and a running suffix product would do.",
+          "title": "Typo in variable name `right_reuslts`",
+          "explanation": "The name is misspelled and inconsistent with `left_results`, which makes the code harder to read and search.",
           "example": null,
-          "fix": "Rename it to `right_results`, or use a single result list plus a running right product.",
+          "fix": "Rename it to `right_results`.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 8.7,
+      "seconds": 17.5,
       "tool_calls": {
         "read_file": 1,
         "run_python": 1
       },
       "questions": [],
+      "critic": [
+        {
+          "round": 1,
+          "line": 16,
+          "title": "Wrong sentinel in the right-to-left loop causes an out-of-range access",
+          "action": "keep",
+          "reason": "The guard `i == len(nums)` is never true, so line 19 indexes past the end when i = n-1; this is a separate bug from the empty-list initialization. It cannot be reached in a test because line 13 raises IndexError first for any valid input (the lists are empty).",
+          "new": []
+        }
+      ],
+      "critic_rounds": 1,
+      "critic_tokens": {
+        "input": 2571,
+        "output": 296
+      },
       "tokens": {
-        "input": 9106,
-        "output": 799
+        "input": 9092,
+        "output": 1234
       },
       "run": 3
     },
@@ -663,23 +737,26 @@
           "line": 1,
           "category": "readability",
           "severity": "minor",
-          "title": "Trivial helpers and parameters named `dict` shadow the builtin",
-          "explanation": "`registerInDict` and `getIndex` only wrap a single dict operation. Their parameters, and the local variable at line 16, are named `dict`, which shadows the builtin type. The function names also use camelCase instead of snake_case. The algorithm itself is correct: it returns i<j, handles duplicates, and returns [] when no pair exists.",
+          "title": "Parameter and variable named `dict` shadow the builtin, and the helper functions add nothing",
+          "explanation": "`registerInDict` and `getIndex` use `dict` as a parameter name, and `two_sum` uses it as a local variable. This shadows the builtin type. The two helpers only wrap a single dict assignment and a single dict lookup, so they add indirection without making the code clearer. The names are also camelCase, unlike the snake_case `two_sum`. The algorithm itself is correct. I checked duplicates, such as [3,3] with target 6, and the no-match case. Both follow the docstring.",
           "example": null,
-          "fix": "Inline the dict operations and rename the variable to something like `seen`. For example, use `seen[x] = i` and `seen[value]`.",
+          "fix": "Inline the helpers, and rename the variable to something like `seen`. For example: `seen = {}`, then `if target - x in seen: return [seen[target - x], i]`, then `seen[x] = i`.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 6.4,
+      "seconds": 5.9,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5630,
-        "output": 496
+        "output": 480
       },
       "run": 1
     },
@@ -692,22 +769,25 @@
           "category": "readability",
           "severity": "minor",
           "title": "Parameter named `dict` shadows the builtin, and the helper functions add nothing",
-          "explanation": "`registerInDict` and `getIndex` only wrap a single dict assignment and a single lookup. Both use `dict` as a parameter name, and `two_sum` uses it as a local variable, so the builtin is shadowed in all three. The helper names are camelCase, which does not match the snake_case of `two_sum`. The algorithm itself is correct: it is a one-pass hash map, it handles duplicates, and it returns i < j.",
+          "explanation": "`registerInDict` and `getIndex` take a parameter called `dict`, and `two_sum` also uses `dict` as a local variable name. That shadows the builtin type. The two helpers only wrap a single dict assignment and a single dict lookup, and their names are in camelCase. They make the code harder to read without adding anything. This does not affect correctness. I checked the logic and it meets the docstring. It returns i < j, handles duplicate values, never uses the same position twice, and returns [] when no pair exists.",
           "example": null,
-          "fix": "Inline the helpers as `seen[x] = i` and `seen[value]`. Rename the variable to something like `seen`.",
+          "fix": "Rename the variable to `seen`, inline the helpers as `seen[x] = i` and `seen[value]`, and use snake_case names if the helpers are kept.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 6.4,
+      "seconds": 8.9,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5630,
-        "output": 452
+        "output": 406
       },
       "run": 2
     },
@@ -719,23 +799,26 @@
           "line": 1,
           "category": "readability",
           "severity": "minor",
-          "title": "Parameters named `dict` shadow the builtin, and the helper functions add nothing",
-          "explanation": "`registerInDict` and `getIndex` are one-line wrappers around dict operations. They use camelCase, which is not PEP 8 style. Their parameter `dict`, and the local variable `dict` in `two_sum`, hide the builtin type. The algorithm itself is correct. For example, `[3,3]` with target 6 returns `[0,1]`, and an input with no pair returns `[]`.",
+          "title": "Parameter named `dict` shadows the builtin, and the helpers add nothing",
+          "explanation": "`registerInDict` and `getIndex` use `dict` as a parameter name, and `two_sum` uses it as a local variable name. This shadows the builtin type. The two helpers only wrap a single dict assignment and a single dict lookup, so they add indirection without adding value. The function itself is correct. I found no bug against the docstring. Duplicates, negative values and the no-pair case all behave as documented.",
           "example": null,
-          "fix": "Inline the wrappers as `seen[x] = i` and `seen[value]`. Rename the variable `dict` to something like `seen`.",
+          "fix": "Rename the variable to `seen`. Inline the helpers as `seen[x] = i` and `seen[value]`.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 5.9,
+      "seconds": 6.7,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5630,
-        "output": 442
+        "output": 402
       },
       "run": 3
     },
@@ -747,23 +830,26 @@
           "line": 32,
           "category": "readability",
           "severity": "minor",
-          "title": "Redundant always-true condition in bit check",
-          "explanation": "`flags ^ flags` is always 0, so `not (flags ^ flags)` is always True. It does nothing and suggests a validity check that doesn't exist. The result is the same as `bool(flags & (1 << 3))`, so the docstring is met. The `is_valid` name is also misleading. This assumes bit 3 is zero-indexed, which is the value 8.",
-          "example": "check_bitwise_flags(8) returns True and check_bitwise_flags(7) returns False, with or without the extra term.",
-          "fix": "Use `return bool(flags & (1 << 3))` and drop the `is_valid` variable.",
+          "title": "Redundant always-true condition `not (flags ^ flags)`",
+          "explanation": "`flags ^ flags` is always 0, so `not (...)` is always True. The expression is dead logic and suggests a check that does nothing. The result is still correct: it equals whether bit 3 (0-indexed, value 8) is set. This assumes \"bit 3\" means 0-indexed, which is the usual convention.",
+          "example": "check_bitwise_flags(8) returns True and check_bitwise_flags(7) returns False, with or without the extra clause.",
+          "fix": "Use `return bool(flags & (1 << 3))`.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 6.5,
+      "seconds": 5.2,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5787,
-        "output": 488
+        "output": 403
       },
       "run": 1
     },
@@ -775,23 +861,26 @@
           "line": 32,
           "category": "readability",
           "severity": "minor",
-          "title": "Redundant always-true condition `not (flags ^ flags)`",
-          "explanation": "`flags ^ flags` is always 0, so `not (flags ^ flags)` is always True. The result is still correct, because it equals whether bit 3 is set. The extra clause is dead code and suggests a check that is not actually done. The temporary variable `is_valid` is also unnecessary. This assumes that 'bit 3' means zero-indexed bit 3, which is mask 8.",
+          "title": "Redundant `not (flags ^ flags)` clause",
+          "explanation": "`flags ^ flags` is always 0, so `not (flags ^ flags)` is always True. It does nothing and suggests a check that isn't there. The function is correct as written. It assumes bit 3 is counted from 0, so the mask is 8. The docstring doesn't say which numbering it uses.",
           "example": null,
-          "fix": "return bool(flags & (1 << 3))",
+          "fix": "Use `return bool(flags & (1 << 3))`.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 5.2,
+      "seconds": 4.7,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5787,
-        "output": 393
+        "output": 358
       },
       "run": 2
     },
@@ -804,7 +893,7 @@
           "category": "readability",
           "severity": "minor",
           "title": "Redundant `not (flags ^ flags)` clause",
-          "explanation": "`flags ^ flags` is always 0, so `not (flags ^ flags)` is always True. The function still returns the right answer, which is whether bit 3 is set, but the extra clause is dead code and suggests a check that doesn't exist. The function also assumes bit 3 is zero-indexed, meaning the mask 8. The docstring doesn't say this.",
+          "explanation": "`flags ^ flags` is always 0, so `not (flags ^ flags)` is always True. The clause has no effect and suggests a validity check that does not exist. The function returns the right result, which is whether bit 3 (value 8, counting from 0) is set. The docstring does not say whether bits are counted from 0 or 1, so the code assumes 0-based.",
           "example": null,
           "fix": "Use `return bool(flags & (1 << 3))`.",
           "test_code": null,
@@ -812,69 +901,19 @@
           "verification": "not_tested"
         }
       ],
-      "seconds": 4.9,
+      "seconds": 4.5,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5787,
-        "output": 386
+        "output": 356
       },
       "run": 3
-    },
-    {
-      "file": "store.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 126,
-          "category": "bug",
-          "severity": "critical",
-          "title": "validate_cart checks each entry separately, so duplicate item_ids can oversell",
-          "explanation": "The docstring says stock must cover the total quantity requested for each item, and the same item_id may appear in several entries. Each entry is checked against stock on its own. Two entries of 6 for an item with 10 in stock both pass. In process_payment, the second deduct_stock then silently does nothing because stock is short. The customer is charged for goods that were never deducted from stock.",
-          "example": "validate_cart([{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}]) returns True, but item_01 has only 10 in stock.",
-          "fix": "Sum quantities per item_id first, then check stock against each total. Return False if any total exceeds stock.",
-          "test_code": "inv=InventoryService();p=PaymentProcessor(SessionManager(),inv)\nr=p.validate_cart([{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}])\nassert r is False, r",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        },
-        {
-          "line": 142,
-          "category": "bug",
-          "severity": "major",
-          "title": "ENABLE_DISCOUNTS setting is ignored in calculate_total",
-          "explanation": "The docstring says a discount code applies only when ENABLE_DISCOUNTS is on. The code never reads that setting, so discounts are applied even when it is off.",
-          "example": "With ENABLE_DISCOUNTS=False, calculate_total([{\"item_id\":\"item_02\",\"quantity\":2}], \"SUMMER10\") returns 52.65. The correct value is 58.5.",
-          "fix": "Read ConfigurationRegistry.get(\"ENABLE_DISCOUNTS\", True) and apply the discount only when it is truthy.",
-          "test_code": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False)\ntry:\n    p=PaymentProcessor(SessionManager(),InventoryService())\n    r=p.calculate_total([{\"item_id\":\"item_02\",\"quantity\":2}],\"SUMMER10\")\n    assert r == 58.5, r\nfinally:\n    ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", True)",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        },
-        {
-          "line": 180,
-          "category": "bug",
-          "severity": "critical",
-          "title": "charged_amount records the raw subtotal instead of the amount charged",
-          "explanation": "The docstring says charged_amount is the amount actually charged, as returned by calculate_total. The code stores raw_subtotal, which has no discount and no tax. total_amount is computed and then never used. AuditService.verify_user_totals therefore returns wrong sums.",
-          "example": "Paying for 2 Mouse (item_02) with SUMMER10 records charged_amount 50.0. calculate_total returns 52.65.",
-          "fix": "Use \"charged_amount\": total_amount and remove the raw_subtotal computation.",
-          "test_code": "sm=SessionManager();p=PaymentProcessor(sm,InventoryService())\ns=sm.create_session(\"u\")\nitems=[{\"item_id\":\"item_02\",\"quantity\":2}]\nexpected=p.calculate_total(items,\"SUMMER10\")\nassert p.process_payment(s,items,\"SUMMER10\")\nassert p.transaction_history[0][\"charged_amount\"] == expected, p.transaction_history[0][\"charged_amount\"]",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        }
-      ],
-      "seconds": 13.3,
-      "tool_calls": {
-        "read_file": 1,
-        "run_python": 1
-      },
-      "questions": [],
-      "tokens": {
-        "input": 16370,
-        "output": 1800
-      },
-      "run": 1
     },
     {
       "file": "store.py",
@@ -885,10 +924,10 @@
           "category": "bug",
           "severity": "critical",
           "title": "validate_cart checks each entry separately, not the total per item",
-          "explanation": "The docstring says stock must cover the total quantity requested for each item_id, and that the same item_id may appear in several entries. The code checks each entry alone. A cart can pass even when its combined quantity exceeds stock. process_payment then charges the full price, but deduct_stock silently skips the entry that no longer fits. The customer pays for goods that are never deducted from stock.",
-          "example": "Cart [{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}] against a stock of 10 is accepted.",
-          "fix": "Sum the quantities per item_id first, then run check_stock on each total.",
-          "test_code": "pp = PaymentProcessor(SessionManager(), InventoryService())\ncart = [{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}]\nassert pp.validate_cart(cart) is False, pp.validate_cart(cart)",
+          "explanation": "The docstring says stock must cover the total quantity requested for each item, and the same item_id may appear in several entries. The loop checks each entry against stock on its own. A cart can pass validation while asking for more than is in stock. In process_payment, deduct_stock then skips the second entry without any error, so the customer is charged for units that were never deducted.",
+          "example": "item_01 has stock 10. The cart [{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}] is accepted, but 12 units are requested.",
+          "fix": "Sum quantities per item_id in a dict first, then check stock against each total.",
+          "test_code": "inv = InventoryService()\np = PaymentProcessor(SessionManager(), inv)\ncart = [{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}]\nassert p.validate_cart(cart) is False, p.validate_cart(cart)",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -897,10 +936,10 @@
           "category": "bug",
           "severity": "major",
           "title": "ENABLE_DISCOUNTS setting is ignored",
-          "explanation": "The docstring says a discount code is applied only when ENABLE_DISCOUNTS is on. The code never reads that setting, so discounts are applied even when it is switched off.",
-          "example": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False); calculate_total([{\"item_id\":\"item_02\",\"quantity\":1}], \"SUMMER10\") returns 26.32 instead of 29.25.",
+          "explanation": "The docstring says a discount code is applied only when ENABLE_DISCOUNTS is on. calculate_total never reads the setting, so discounts are applied even when it is turned off.",
+          "example": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False); calculate_total([{\"item_id\":\"item_02\",\"quantity\":1}], \"SUMMER10\") returns about 26.33 instead of 29.25.",
           "fix": "Wrap the discount block in `if ConfigurationRegistry.get(\"ENABLE_DISCOUNTS\", True):`.",
-          "test_code": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False)\npp = PaymentProcessor(SessionManager(), InventoryService())\nr = pp.calculate_total([{\"item_id\":\"item_02\",\"quantity\":1}], \"SUMMER10\")\nConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", True)\nassert r == 29.25, r",
+          "test_code": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False)\ntry:\n    p = PaymentProcessor(SessionManager(), InventoryService())\n    r = p.calculate_total([{\"item_id\":\"item_02\",\"quantity\":1}], \"SUMMER10\")\n    assert r == 29.25, r\nfinally:\n    ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", True)",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -908,11 +947,121 @@
           "line": 180,
           "category": "bug",
           "severity": "critical",
-          "title": "charged_amount records the raw subtotal, not the amount charged",
-          "explanation": "The docstring says charged_amount is the amount actually charged, as returned by calculate_total. The code stores raw_subtotal, which has no discount and no tax. total_amount is computed and then never used. AuditService.verify_user_totals therefore returns wrong sums.",
-          "example": "Paying for 1 Mouse (25.0) with no discount records 25.0, but calculate_total returns 29.25.",
-          "fix": "Use \"charged_amount\": total_amount and remove the raw_subtotal accumulation.",
-          "test_code": "sm = SessionManager()\nu = \"u1\"\ns = sm.create_session(u)\npp = PaymentProcessor(sm, InventoryService())\ncart = [{\"item_id\":\"item_02\",\"quantity\":1}]\nexpected = pp.calculate_total(cart)\nassert pp.process_payment(s, cart)\nassert pp.transaction_history[0][\"charged_amount\"] == expected, pp.transaction_history[0][\"charged_amount\"]",
+          "title": "charged_amount records the raw subtotal instead of the amount charged",
+          "explanation": "The docstring says charged_amount is the amount actually charged, as returned by calculate_total. The code stores raw_subtotal, which has no discount and no tax. The transaction history and AuditService.verify_user_totals are therefore wrong. total_amount is computed but never used.",
+          "example": "One Mouse (25.0) with no discount: calculate_total gives 29.25, but charged_amount is 25.0.",
+          "fix": "Use \"charged_amount\": total_amount and remove the raw_subtotal calculation.",
+          "test_code": "sm = SessionManager()\np = PaymentProcessor(sm, InventoryService())\nsid = sm.create_session(\"u1\")\nitems = [{\"item_id\":\"item_02\",\"quantity\":1}]\nexpected = p.calculate_total(items)\nassert p.process_payment(sid, items)\nassert p.transaction_history[0][\"charged_amount\"] == expected, p.transaction_history[0][\"charged_amount\"]",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 12.1,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
+      "tokens": {
+        "input": 9002,
+        "output": 1759
+      },
+      "run": 1
+    },
+    {
+      "file": "store.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 126,
+          "category": "bug",
+          "severity": "critical",
+          "title": "validate_cart checks each entry separately, so duplicate item_ids can oversell",
+          "explanation": "The docstring says the same item_id may appear in several entries and that stock must cover the total quantity requested for each item. Each entry is checked against stock on its own, so two entries of 6 for an item with 10 in stock both pass. `deduct_stock` then silently skips the second deduction because stock is short. The payment succeeds and the customer is charged for items that were never deducted.",
+          "example": "items=[{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}] with stock 10 returns True",
+          "fix": "Sum quantities per item_id first, then check stock against each total.",
+          "test_code": "inv = InventoryService()\npm = PaymentProcessor(SessionManager(), inv)\nitems = [{\"item_id\": \"item_01\", \"quantity\": 6}, {\"item_id\": \"item_01\", \"quantity\": 6}]\nassert pm.validate_cart(items) is False, pm.validate_cart(items)",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 142,
+          "category": "bug",
+          "severity": "major",
+          "title": "calculate_total ignores the ENABLE_DISCOUNTS setting",
+          "explanation": "The docstring says a discount code is applied only when ENABLE_DISCOUNTS is on. The code never reads that setting, so discounts are applied even when it is off.",
+          "example": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False); calculate_total([{\"item_id\":\"item_02\",\"quantity\":1}], \"VIP20\") returns 23.4 instead of 29.25",
+          "fix": "Wrap the discount branches in `if ConfigurationRegistry.get(\"ENABLE_DISCOUNTS\", True):`.",
+          "test_code": "ConfigurationRegistry.set(\"ENABLE_DISCOUNTS\", False)\npm = PaymentProcessor(SessionManager(), InventoryService())\nitems = [{\"item_id\": \"item_02\", \"quantity\": 1}]\na = pm.calculate_total(items, \"VIP20\")\nb = pm.calculate_total(items)\nassert a == b, (a, b)",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 180,
+          "category": "bug",
+          "severity": "critical",
+          "title": "charged_amount records the raw subtotal instead of the amount charged",
+          "explanation": "The docstring says charged_amount is the amount actually charged, as returned by calculate_total. The code stores `raw_subtotal`, which has no discount and no tax. `total_amount` is computed and then never used. As a result `AuditService.verify_user_totals` returns the wrong sums.",
+          "example": "Buying 1 Mouse (25.0) with no discount records 25.0 instead of 29.25",
+          "fix": "Use `\"charged_amount\": total_amount` and remove the raw_subtotal computation.",
+          "test_code": "sm = SessionManager()\ninv = InventoryService()\npm = PaymentProcessor(sm, inv)\nsid = sm.create_session(\"u1\")\nitems = [{\"item_id\": \"item_02\", \"quantity\": 1}]\nexpected = pm.calculate_total(items, \"VIP20\")\nassert pm.process_payment(sid, items, \"VIP20\")\nactual = pm.transaction_history[-1][\"charged_amount\"]\nassert actual == expected, (actual, expected)",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 11.0,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
+      "tokens": {
+        "input": 9002,
+        "output": 1593
+      },
+      "run": 2
+    },
+    {
+      "file": "store.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 126,
+          "category": "bug",
+          "severity": "critical",
+          "title": "validate_cart checks each entry separately instead of the total per item",
+          "explanation": "The docstring says the same item_id may appear in several entries and that stock must cover the total quantity requested for each item. The code checks each entry against stock on its own. A cart that asks for more than the stock across several entries is accepted. deduct_stock then silently skips the entries that no longer fit, but the customer is charged for them.",
+          "example": "item_01 has stock 10. The cart [{'item_id':'item_01','quantity':6},{'item_id':'item_01','quantity':6}] asks for 12 units and is accepted.",
+          "fix": "Sum quantities per item_id first, then check stock against each total.",
+          "test_code": "inv = InventoryService()\np = PaymentProcessor(SessionManager(), inv)\nitems = [{'item_id': 'item_01', 'quantity': 6}, {'item_id': 'item_01', 'quantity': 6}]\nassert p.validate_cart(items) is False, p.validate_cart(items)",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 142,
+          "category": "bug",
+          "severity": "major",
+          "title": "ENABLE_DISCOUNTS setting is ignored",
+          "explanation": "The docstring says discount codes apply only when ENABLE_DISCOUNTS is on. calculate_total never reads the setting, so discounts apply even when it is off.",
+          "example": "Call ConfigurationRegistry.set('ENABLE_DISCOUNTS', False), then calculate_total([{'item_id':'item_02','quantity':1}], 'SUMMER10'). It returns 26.32, not 29.25.",
+          "fix": "Check ConfigurationRegistry.get('ENABLE_DISCOUNTS', True) before applying a discount code.",
+          "test_code": "ConfigurationRegistry.set('ENABLE_DISCOUNTS', False)\ntry:\n    p = PaymentProcessor(SessionManager(), InventoryService())\n    r = p.calculate_total([{'item_id': 'item_02', 'quantity': 1}], 'SUMMER10')\n    assert r == 29.25, r\nfinally:\n    ConfigurationRegistry.set('ENABLE_DISCOUNTS', True)",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 180,
+          "category": "bug",
+          "severity": "critical",
+          "title": "charged_amount records the raw subtotal instead of the amount charged",
+          "explanation": "The docstring says charged_amount is the amount actually charged, as returned by calculate_total. The code stores raw_subtotal, which has no discount and no tax. The transaction history and AuditService.verify_user_totals are therefore wrong.",
+          "example": "One Mouse (25.0) with no discount: calculate_total gives 29.25, but charged_amount is 25.0.",
+          "fix": "Use 'charged_amount': total_amount and remove the raw_subtotal computation.",
+          "test_code": "sm = SessionManager()\ninv = InventoryService()\np = PaymentProcessor(sm, inv)\nsid = sm.create_session('u1')\nitems = [{'item_id': 'item_02', 'quantity': 1}]\nexpected = p.calculate_total(items)\nassert p.process_payment(sid, items) is True\namt = p.transaction_history[0]['charged_amount']\nassert amt == expected, amt\nassert AuditService(p).verify_user_totals('u1') == expected",
           "untestable_reason": null,
           "verification": "confirmed"
         }
@@ -922,62 +1071,12 @@
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 9002,
-        "output": 1700
-      },
-      "run": 2
-    },
-    {
-      "file": "store.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 123,
-          "category": "bug",
-          "severity": "critical",
-          "title": "validate_cart checks stock per entry, not per total item quantity",
-          "explanation": "The docstring says stock must cover the total quantity requested for each item, and the same item_id may appear in several entries. Each entry is checked alone. Two entries of 6 laptops both pass against a stock of 10. The payment then succeeds, and deduct_stock silently skips the second deduction. The customer is charged for 12 units, but only 6 are deducted from stock.",
-          "example": "[{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}] with stock 10 returns True. process_payment also returns True, and stock ends at 4.",
-          "fix": "Sum the quantities per item_id first, then check stock against each total.",
-          "test_code": "inv=InventoryService();sm=SessionManager();p=PaymentProcessor(sm,inv)\nitems=[{\"item_id\":\"item_01\",\"quantity\":6},{\"item_id\":\"item_01\",\"quantity\":6}]\nassert p.validate_cart(items) is False, p.validate_cart(items)",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        },
-        {
-          "line": 142,
-          "category": "bug",
-          "severity": "major",
-          "title": "ENABLE_DISCOUNTS setting is ignored",
-          "explanation": "The docstring says discount codes apply only when ENABLE_DISCOUNTS is on. The code never reads the setting, so discounts apply even when it is off.",
-          "example": "ConfigurationRegistry.set('ENABLE_DISCOUNTS', False); calculate_total([{'item_id':'item_02','quantity':1}], 'SUMMER10') returns 26.32 instead of 29.25.",
-          "fix": "Wrap the discount block in `if ConfigurationRegistry.get('ENABLE_DISCOUNTS', True):`.",
-          "test_code": "inv=InventoryService();sm=SessionManager();p=PaymentProcessor(sm,inv)\nConfigurationRegistry.set('ENABLE_DISCOUNTS', False)\nr=p.calculate_total([{'item_id':'item_02','quantity':1}],'SUMMER10')\nConfigurationRegistry.set('ENABLE_DISCOUNTS', True)\nassert r == 29.25, r",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        },
-        {
-          "line": 180,
-          "category": "bug",
-          "severity": "critical",
-          "title": "charged_amount records the raw subtotal instead of the amount charged",
-          "explanation": "The docstring says charged_amount is the amount returned by calculate_total, which includes the discount and tax. The code stores the pre-discount, pre-tax raw_subtotal. This also makes AuditService.verify_user_totals wrong.",
-          "example": "Buying 2 mice (item_02) with VIP20 gives a charged_amount of 50.0. calculate_total returns 46.8.",
-          "fix": "Use `\"charged_amount\": total_amount`, and remove the raw_subtotal computation.",
-          "test_code": "inv=InventoryService();sm=SessionManager();p=PaymentProcessor(sm,inv)\ns=sm.create_session('u')\nitems=[{'item_id':'item_02','quantity':2}]\nexpected=p.calculate_total(items,'VIP20')\nassert p.process_payment(s,items,'VIP20')\nassert p.transaction_history[0]['charged_amount']==expected, p.transaction_history[0]['charged_amount']",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        }
-      ],
-      "seconds": 15.2,
-      "tool_calls": {
-        "read_file": 1,
-        "run_python": 2
-      },
-      "questions": [],
-      "tokens": {
-        "input": 24578,
-        "output": 2029
+        "output": 1676
       },
       "run": 3
     },
@@ -990,23 +1089,26 @@
           "category": "bug",
           "severity": "critical",
           "title": "Tax is computed on the undiscounted subtotal",
-          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code takes 10% of the original subtotal, so any discount above 0 makes the customer pay too much tax. With a 100.0 item and a 50% discount, checkout returns 60.0 when the correct amount is 55.0.",
-          "example": "c=ShoppingCart('u'); c.add_item('a',100,1); c.apply_discount(50); c.checkout() returns 60.0, expected 55.0",
+          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code takes 10% of the original subtotal, so any discount makes the customer pay too much tax. With a 100.00 subtotal and a 50% discount, the correct total is 50 + 5 = 55.00. The code returns 60.00.",
+          "example": "c = ShoppingCart('u'); c.add_item('a', 100, 1); c.apply_discount(50); c.checkout() returns 60.0 instead of 55.0",
           "fix": "Use tax = discounted_subtotal * 0.10.",
           "test_code": "c = ShoppingCart('u')\nc.add_item('a', 100, 1)\nc.apply_discount(50)\nr = c.checkout()\nassert r == 55.0, r",
           "untestable_reason": null,
           "verification": "confirmed"
         }
       ],
-      "seconds": 8.6,
+      "seconds": 5.9,
       "tool_calls": {
         "read_file": 1,
         "run_python": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 9606,
-        "output": 468
+        "output": 475
       },
       "run": 1
     },
@@ -1019,9 +1121,9 @@
           "category": "bug",
           "severity": "critical",
           "title": "Tax is computed on the undiscounted subtotal",
-          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code uses `subtotal * 0.10`, so any discount leaves the customer overcharged. With a 100 subtotal and a 50% discount, the result is 60.0 when it should be 55.0.",
-          "example": "c=ShoppingCart('u'); c.add_item('a',100,1); c.apply_discount(50); c.checkout() -> 60.0, expected 55.0",
-          "fix": "Use `tax = discounted_subtotal * 0.10`.",
+          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code takes 10% of the original subtotal, so any cart with a discount is overcharged. With a 100.00 subtotal and a 50% discount, the code returns 60.0 when the correct total is 55.0.",
+          "example": "c = ShoppingCart('u'); c.add_item('a', 100, 1); c.apply_discount(50); c.checkout() returns 60.0, expected 55.0",
+          "fix": "Use tax = discounted_subtotal * 0.10.",
           "test_code": "c = ShoppingCart('u')\nc.add_item('a', 100, 1)\nc.apply_discount(50)\nr = c.checkout()\nassert r == 55.0, r",
           "untestable_reason": null,
           "verification": "confirmed"
@@ -1033,9 +1135,12 @@
         "run_python": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 9606,
-        "output": 462
+        "input": 9609,
+        "output": 468
       },
       "run": 2
     },
@@ -1047,24 +1152,27 @@
           "line": 39,
           "category": "bug",
           "severity": "critical",
-          "title": "Tax computed on undiscounted subtotal",
-          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code uses the original subtotal, so any discount leaves the customer overcharged. With a 100 item and a 50% discount, checkout returns 60.0. The correct result is 55.0.",
-          "example": "c=ShoppingCart('u'); c.add_item('a',100,1); c.apply_discount(50); c.checkout() returns 60.0, expected 55.0",
+          "title": "Tax is computed on the undiscounted subtotal",
+          "explanation": "The docstring says tax is 10% of the discounted subtotal. The code takes 10% of the original subtotal, so any discount makes the customer pay too much tax.",
+          "example": "Add one item at price 100 with quantity 1, apply a 50% discount, then checkout. The result is 60.0. The correct result is 55.0.",
           "fix": "Use tax = discounted_subtotal * 0.10.",
           "test_code": "c = ShoppingCart('u')\nc.add_item('a', 100, 1)\nc.apply_discount(50)\nr = c.checkout()\nassert r == 55.0, r",
           "untestable_reason": null,
           "verification": "confirmed"
         }
       ],
-      "seconds": 7.4,
+      "seconds": 7.1,
       "tool_calls": {
         "read_file": 1,
         "run_python": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 9606,
-        "output": 453
+        "output": 420
       },
       "run": 3
     },
@@ -1076,23 +1184,50 @@
           "line": 19,
           "category": "bug",
           "severity": "major",
-          "title": "Value is stored by reference, so get() does not return the value as it was when set() was called",
-          "explanation": "The docstring says get returns the value exactly as it was when set was called. set stores the caller's object without copying it. If the caller mutates a mutable payload (list, dict) after set, get returns the mutated object, not the original state. Mutating the object returned by get also corrupts the cached entry, because get returns the stored reference.",
-          "example": "d = {'a': [1]}; cache.set('k', d); d['a'].append(2); cache.get('k') returns {'a': [1, 2]}",
-          "fix": "Store copy.deepcopy(value) in set. Return copy.deepcopy(value) from get so callers cannot change the cached data.",
+          "title": "set stores a reference, so later mutation of the caller's object changes the cached value",
+          "explanation": "The contract says get returns the value exactly as it was when set was called. set stores the caller's object without copying it. If the caller mutates a dict or list after set, get returns the mutated object instead of the original.",
+          "example": "d={'a':[1]}; c.set('k', d); d['a'].append(2); c.get('k') returns {'a':[1,2]}",
+          "fix": "Store copy.deepcopy(value) in set.",
           "test_code": "c = MemoizedDataCache()\nd = {'a': [1]}\nc.set('k', d)\nd['a'].append(2)\nassert c.get('k') == {'a': [1]}, c.get('k')",
           "untestable_reason": null,
           "verification": "confirmed"
+        },
+        {
+          "line": 30,
+          "category": "bug",
+          "severity": "major",
+          "title": "get returns the internal object, so mutating the result corrupts the cache",
+          "explanation": "get returns the stored object itself. If the caller mutates the result, the cached value changes. A later get then no longer returns the value as it was when set was called. Copying in set does not fix this.",
+          "example": "c.set('k',[1]); v=c.get('k'); v.append(2); c.get('k') returns [1,2]",
+          "fix": "Return copy.deepcopy(value) from get.",
+          "test_code": "c = MemoizedDataCache()\nc.set('k', [1])\nv = c.get('k')\nv.append(2)\nassert c.get('k') == [1], c.get('k')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 18,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive utcnow() used for expiry",
+          "explanation": "datetime.utcnow() is deprecated since Python 3.12 and returns a naive datetime. A monotonic clock (time.monotonic) is also safer for TTLs because it is unaffected by wall-clock changes. The same call appears at lines 26 and 33.",
+          "example": null,
+          "fix": "Use time.monotonic() or datetime.now(timezone.utc).",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
         }
       ],
-      "seconds": 7.5,
+      "seconds": 9.6,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5964,
-        "output": 598
+        "output": 997
       },
       "run": 1
     },
@@ -1104,11 +1239,23 @@
           "line": 19,
           "category": "bug",
           "severity": "major",
-          "title": "Mutable values are stored by reference, so get does not return the value as it was at set time",
-          "explanation": "The docstring says get returns the value exactly as it was when set was called. The cache stores the caller's object without copying it. If the caller mutates a dict or list after set, get returns the mutated object. Mutating the object that get returns also changes the cached entry.",
-          "example": "d = {'a': 1}; c = MemoizedDataCache(); c.set('k', d); d['a'] = 2; c.get('k') returns {'a': 2}, not {'a': 1}",
-          "fix": "Store copy.deepcopy(value) in set. Return a deepcopy from get if callers may mutate the result.",
-          "test_code": "c = MemoizedDataCache()\nd = {'a': [1, 2]}\nc.set('k', d)\nd['a'].append(3)\nd['b'] = 1\nassert c.get('k') == {'a': [1, 2]}, c.get('k')",
+          "title": "set stores a reference, so later mutation of the caller's object changes the cached value",
+          "explanation": "The contract says get returns the value exactly as it was when set was called. The cache keeps a reference to the caller's mutable object. If the caller mutates it after set, get returns the mutated object instead of the original.",
+          "example": "d = {'a': 1}; c.set('k', d); d['a'] = 2; c.get('k') returns {'a': 2}",
+          "fix": "Store copy.deepcopy(value) in set.",
+          "test_code": "c = MemoizedDataCache()\nd = {'a': 1}\nc.set('k', d)\nd['a'] = 2\nassert c.get('k') == {'a': 1}, c.get('k')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 30,
+          "category": "bug",
+          "severity": "major",
+          "title": "get returns the internal object, so mutating the result corrupts the cache",
+          "explanation": "get returns the stored reference. If the caller mutates the returned value, later get calls return the modified value. That breaks the contract that the value is returned exactly as it was when set.",
+          "example": "c.set('k', [1]); c.get('k').append(2); c.get('k') returns [1, 2]",
+          "fix": "Return copy.deepcopy(value) from get.",
+          "test_code": "c = MemoizedDataCache()\nc.set('k', [1])\nc.get('k').append(2)\nassert c.get('k') == [1], c.get('k')",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -1116,23 +1263,26 @@
           "line": 18,
           "category": "readability",
           "severity": "minor",
-          "title": "Deprecated naive utcnow and wall-clock time used for expiry",
-          "explanation": "datetime.utcnow() is deprecated since Python 3.12 and returns naive datetimes. Wall-clock time can jump, for example on a clock adjustment, which would make entries expire early or late. The code assumes the clock never jumps. time.monotonic() is more robust for TTLs.",
+          "title": "datetime.utcnow() is deprecated and returns naive datetimes",
+          "explanation": "utcnow() is deprecated since Python 3.12. It is also used in three places. time.monotonic() would be simpler and would not be affected by wall-clock changes.",
           "example": null,
-          "fix": "Use time.monotonic() floats for expiry, or datetime.now(datetime.timezone.utc).",
+          "fix": "Use time.monotonic() or datetime.now(timezone.utc).",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 8.8,
+      "seconds": 9.3,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5964,
-        "output": 776
+        "output": 961
       },
       "run": 2
     },
@@ -1144,11 +1294,11 @@
           "line": 19,
           "category": "bug",
           "severity": "major",
-          "title": "set stores the value by reference, so later mutation of the caller's object changes the cached value",
-          "explanation": "The docstring says get returns the value exactly as it was when set was called. The cache keeps a reference to the caller's object. If the caller mutates a list or dict after set, get returns the mutated object instead of the original.",
-          "example": "l=[1]; c.set('a', l); l.append(2); c.get('a') returns [1, 2]",
-          "fix": "Store a snapshot, for example copy.deepcopy(value), in set.",
-          "test_code": "c = MemoizedDataCache()\nl = [1]\nc.set('a', l)\nl.append(2)\nassert c.get('a') == [1], c.get('a')",
+          "title": "set stores a reference, so later caller mutations change the cached value",
+          "explanation": "The contract says get returns the value exactly as it was when set was called. set stores the caller's object without copying it. If the caller mutates a list or dict after calling set, get returns the mutated object.",
+          "example": "l=[1,2]; c.set('a', l); l.append(3); c.get('a') -> [1, 2, 3]",
+          "fix": "In set, store copy.deepcopy(value) instead of value (and add import copy).",
+          "test_code": "c = MemoizedDataCache()\nl = [1, 2]\nc.set('a', l)\nl.append(3)\nr = c.get('a')\nassert r == [1, 2], r",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -1156,11 +1306,11 @@
           "line": 30,
           "category": "bug",
           "severity": "major",
-          "title": "get returns the internal stored object, so callers can corrupt the cache",
-          "explanation": "get returns the stored object itself. If the caller mutates the returned value, the cached entry changes. A later get then no longer returns the value as it was when set was called.",
-          "example": "c.set('a',[1]); c.get('a').append(2); c.get('a') returns [1, 2]",
-          "fix": "Return copy.deepcopy(value) from get.",
-          "test_code": "c = MemoizedDataCache()\nc.set('a', [1])\nc.get('a').append(2)\nassert c.get('a') == [1], c.get('a')",
+          "title": "get returns the stored object, so mutating the result corrupts the cache",
+          "explanation": "get hands out the internal cached object. If a caller mutates the returned value, later get calls return the mutated data. This breaks the contract that get returns the value as it was when set was called, even if set stores a copy.",
+          "example": "c.set('a', [1,2]); c.get('a').append(3); c.get('a') -> [1, 2, 3]",
+          "fix": "In get, return copy.deepcopy(value) instead of value.",
+          "test_code": "c = MemoizedDataCache()\nc.set('a', [1, 2])\nr = c.get('a')\nr.append(3)\nr2 = c.get('a')\nassert r2 == [1, 2], r2",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -1168,10 +1318,318 @@
           "line": 18,
           "category": "readability",
           "severity": "minor",
-          "title": "Uses deprecated utcnow and a wall clock for expiry",
-          "explanation": "datetime.utcnow() is deprecated since Python 3.12 and returns naive datetimes. The wall clock can jump, which makes expiry unreliable. The code assumes the system clock never changes. time.monotonic() is better suited to TTLs. The same call appears on lines 26 and 33.",
+          "title": "datetime.utcnow() is deprecated",
+          "explanation": "utcnow() returns naive datetimes and is deprecated since Python 3.12. It also relies on wall-clock time, which can jump backwards or forwards. time.monotonic() would be a safer choice for TTL checks.",
           "example": null,
-          "fix": "Use time.monotonic() and store the expiry as a float.",
+          "fix": "Use time.monotonic(), or datetime.now(timezone.utc), for expiry timestamps.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 32,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Expired entries are only removed lazily",
+          "explanation": "Entries that expire are removed only when get is called for that key or when clear_expired is called by hand. This assumes callers will call clear_expired regularly. Otherwise, keys that are never read again stay in memory and the cache grows without bound.",
+          "example": null,
+          "fix": "Call clear_expired periodically, for example from set, or document that callers must call it.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 28.0,
+      "tool_calls": {
+        "read_file": 1,
+        "run_python": 1
+      },
+      "questions": [],
+      "critic": [
+        {
+          "round": 1,
+          "line": 19,
+          "title": "Cache stores a reference, so get does not return the value as it was at set time",
+          "action": "split",
+          "reason": "The contract requires get to return the value as it was at set time, so copying on get is required, not optional. Copying in set and copying in get are separate fixes: each leaves the other mutation path broken.",
+          "new": [
+            "set stores a reference, so later caller mutations change the cached value",
+            "get returns the stored object, so mutating the result corrupts the cache"
+          ]
+        }
+      ],
+      "critic_rounds": 1,
+      "critic_tokens": {
+        "input": 2775,
+        "output": 937
+      },
+      "tokens": {
+        "input": 9975,
+        "output": 952
+      },
+      "run": 3
+    },
+    {
+      "file": "rbac.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 27,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Inheritance is not transitive; only direct parents are checked",
+          "explanation": "The class promises hierarchical role inheritance. has_permission only looks at the role's direct parents and never follows the parents' own parents. A permission held by a grandparent role is therefore denied to the grandchild.",
+          "example": "define_role('a',['x']); define_role('b',[]); define_role('c',[]); inherit_role('b','a'); inherit_role('c','b'); has_permission('c','x') returns False",
+          "fix": "Walk the inheritance graph recursively or with a stack. Keep a visited set so cycles don't loop forever. Return True if any ancestor role has the permission.",
+          "test_code": "e = RBACEngine()\ne.define_role('a', ['x'])\ne.define_role('b', [])\ne.define_role('c', [])\ne.inherit_role('b', 'a')\ne.inherit_role('c', 'b')\nassert e.has_permission('c', 'x') is True, e.has_permission('c', 'x')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 7.0,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
+      "tokens": {
+        "input": 5814,
+        "output": 578
+      },
+      "run": 1
+    },
+    {
+      "file": "rbac.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 27,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Role inheritance is not transitive; only direct parents are checked",
+          "explanation": "The class claims hierarchical role inheritance. has_permission only looks at the permissions of a role's immediate parents. It never follows the parents' own parents, so permissions from grandparent roles and higher are ignored. A role that inherits from a role that inherits from a role with the permission is wrongly denied.",
+          "example": "define_role('a',['p']); define_role('b',[]); define_role('c',[]); inherit_role('b','a'); inherit_role('c','b'); has_permission('c','p') returns False",
+          "fix": "Traverse the inheritance graph iteratively or recursively with a visited set, which also guards against cycles. Check each reachable role's permissions.",
+          "test_code": "e = RBACEngine()\ne.define_role('a', ['p'])\ne.define_role('b', [])\ne.define_role('c', [])\ne.inherit_role('b', 'a')\ne.inherit_role('c', 'b')\nassert e.has_permission('c', 'p') is True, e.has_permission('c', 'p')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 11.0,
+      "tool_calls": {
+        "read_file": 1,
+        "run_python": 1
+      },
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
+      "tokens": {
+        "input": 9321,
+        "output": 728
+      },
+      "run": 2
+    },
+    {
+      "file": "rbac.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 27,
+          "category": "bug",
+          "severity": "critical",
+          "title": "Inheritance is resolved only one level deep",
+          "explanation": "The class claims hierarchical role inheritance. has_permission checks the role and its direct parents only. It never follows the parents' own parents, so a permission held by a grandparent role is denied. This is a wrong result for a normal hierarchy.",
+          "example": "define_role('c',['read']); define_role('b',[]); define_role('a',[]); inherit_role('a','b'); inherit_role('b','c'); has_permission('a','read') returns False, but should return True",
+          "fix": "Traverse the inheritance graph transitively with a DFS or BFS and a visited set. The visited set also keeps the traversal safe if the graph has cycles.",
+          "test_code": "e = RBACEngine()\ne.define_role('c', ['read'])\ne.define_role('b', [])\ne.define_role('a', [])\ne.inherit_role('a', 'b')\ne.inherit_role('b', 'c')\nassert e.has_permission('a', 'read') is True, e.has_permission('a', 'read')",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        }
+      ],
+      "seconds": 6.9,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
+      "tokens": {
+        "input": 5814,
+        "output": 562
+      },
+      "run": 3
+    },
+    {
+      "file": "locks.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 38,
+          "category": "bug",
+          "severity": "major",
+          "title": "release succeeds on an expired lease",
+          "explanation": "The docstring says release unlocks the resource only if the owner holds the active lock. release never checks `expires_at`. An owner whose lease has expired therefore gets True and deletes the entry. The lock is no longer active, so release should return False. I ran this with an already-expired lease and release returned True.",
+          "example": "m = ResourceLockManager(default_lease_seconds=-1); m.acquire('r','a'); m.release('r','a') returns True",
+          "fix": "Before deleting, check `datetime.datetime.utcnow() >= lock_info['expires_at']`. If the lease has expired, remove the stale entry if you like and return False.",
+          "test_code": "m = ResourceLockManager(default_lease_seconds=-1)\nassert m.acquire('r','a')\nres = m.release('r','a')\nassert res is False, res",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 16,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive utcnow() used for lease timing",
+          "explanation": "`datetime.utcnow()` is deprecated and returns naive datetimes. A monotonic clock, or timezone-aware time, would be more robust for lease timing. A monotonic clock is not affected by wall-clock adjustments. The code assumes the system clock never jumps.",
+          "example": null,
+          "fix": "Use time.monotonic() or datetime.now(timezone.utc).",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 8.6,
+      "tool_calls": {
+        "read_file": 1,
+        "run_python": 1
+      },
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
+      "tokens": {
+        "input": 9792,
+        "output": 819
+      },
+      "run": 1
+    },
+    {
+      "file": "locks.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 38,
+          "category": "bug",
+          "severity": "major",
+          "title": "release succeeds for an expired lease",
+          "explanation": "The contract says release unlocks only if the requesting owner holds the active lock. release never checks `expires_at`. An owner whose lease has expired therefore gets True and the entry is deleted, even though they no longer hold an active lock. With a lease of 0 seconds, the lock is already expired when acquire returns, yet release returns True.",
+          "example": "m = ResourceLockManager(default_lease_seconds=0); m.acquire('r','a'); m.release('r','a') returns True",
+          "fix": "In release, compare `datetime.datetime.utcnow()` with `lock_info['expires_at']`. If the lease has expired, return False (optionally deleting the stale entry first).",
+          "test_code": "m = ResourceLockManager(default_lease_seconds=0)\nassert m.acquire('r','a') is True\nr = m.release('r','a')\nassert r is False, r",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 16,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive utcnow() used for lease timing",
+          "explanation": "datetime.utcnow() is deprecated and returns naive datetimes. The wall clock can also jump, which would shorten or extend leases. time.monotonic() or timezone-aware datetimes would be more robust. The class also assumes single-threaded use, so there is no locking around the check-then-set in acquire.",
+          "example": null,
+          "fix": "Use time.monotonic() or datetime.now(timezone.utc). Add a threading.Lock if the class is used from several threads.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 13.6,
+      "tool_calls": {
+        "read_file": 1,
+        "run_python": 1
+      },
+      "questions": [],
+      "critic": [
+        {
+          "round": 1,
+          "line": 38,
+          "title": "release succeeds for an expired lease",
+          "action": "keep",
+          "reason": "The contract says release succeeds only for the holder of an active lock, and release never checks expires_at, so an expired owner gets True. The test shows this. The 'optionally' covers only deleting the stale entry, which the contract does not require, so the required part of the fix is not hedged.",
+          "new": []
+        }
+      ],
+      "critic_rounds": 1,
+      "critic_tokens": {
+        "input": 2818,
+        "output": 241
+      },
+      "tokens": {
+        "input": 9810,
+        "output": 874
+      },
+      "run": 2
+    },
+    {
+      "file": "locks.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 38,
+          "category": "bug",
+          "severity": "major",
+          "title": "release succeeds on an expired lease",
+          "explanation": "The docstring says release unlocks only if the requesting owner holds the active lock. release never checks `expires_at`. An owner whose lease has expired still gets True and deletes the entry, so it reports a successful release of a lock it no longer holds. Because release returns False when no lock exists, the result is also inconsistent: the same call returns True or False depending on whether the expired entry has been replaced.",
+          "example": "m = ResourceLockManager(default_lease_seconds=0); m.acquire('r','a'); m.release('r','a') returns True, but the lease has already expired.",
+          "fix": "In release, compare `datetime.datetime.utcnow()` with `lock_info['expires_at']`. If the lease has expired, drop the stale entry if you want, and return False.",
+          "test_code": "m = ResourceLockManager(default_lease_seconds=0)\nassert m.acquire('r', 'a')\nres = m.release('r', 'a')\nassert res is False, res",
+          "untestable_reason": null,
+          "verification": "confirmed"
+        },
+        {
+          "line": 16,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive utcnow and unbounded stale entries",
+          "explanation": "`datetime.utcnow()` is deprecated and returns a naive datetime. Expired entries are only replaced when the same resource is acquired again, so entries for resources that are never reacquired stay in the dict. This assumes the set of resource ids is small.",
+          "example": null,
+          "fix": "Use `datetime.datetime.now(datetime.timezone.utc)` or `time.monotonic()`. Optionally purge expired entries.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 8.2,
+      "tool_calls": {
+        "read_file": 1
+      },
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
+      "tokens": {
+        "input": 5974,
+        "output": 763
+      },
+      "run": 3
+    },
+    {
+      "file": "rate_limiter.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 37,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Deprecated naive utcnow() used as the clock",
+          "explanation": "datetime.utcnow() is deprecated since Python 3.12 and returns naive datetimes. It follows the wall clock, so NTP adjustments or clock changes can stall or distort refill. This assumes the wall clock never jumps. time.monotonic() would be a better fit for measuring elapsed time.",
+          "example": null,
+          "fix": "Use time.monotonic() and store floats, or at least datetime.now(datetime.timezone.utc).",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 19,
+          "category": "performance",
+          "severity": "minor",
+          "title": "Bucket dictionary grows without bound",
+          "explanation": "Each distinct key adds an entry to _buckets that is never evicted, even after the bucket has refilled to full capacity. With many distinct keys, such as client IPs, memory grows without limit. This assumes a bounded key space.",
+          "example": null,
+          "fix": "Evict entries that have fully refilled, or drop stale keys periodically.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
@@ -1182,217 +1640,39 @@
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 5964,
-        "output": 1036
-      },
-      "run": 3
-    },
-    {
-      "file": "rbac.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 27,
-          "category": "bug",
-          "severity": "major",
-          "title": "Inheritance is not transitive; only direct parents are checked",
-          "explanation": "The class is described as having hierarchical role inheritance. has_permission only looks at the permissions of direct parents. It never follows the parents' own parents, so permissions from grandparent roles and higher are denied. With admin -> editor -> viewer, admin does not get viewer's permissions.",
-          "example": "e = RBACEngine(); e.define_role('viewer', ['read']); e.define_role('editor', ['write']); e.define_role('admin', ['delete']); e.inherit_role('editor','viewer'); e.inherit_role('admin','editor'); e.has_permission('admin','read') returns False",
-          "fix": "Traverse the inheritance graph iteratively or recursively with a visited set, which also protects against cycles. Check every ancestor's permissions.",
-          "test_code": "e = RBACEngine()\ne.define_role('viewer', ['read'])\ne.define_role('editor', ['write'])\ne.define_role('admin', ['delete'])\ne.inherit_role('editor', 'viewer')\ne.inherit_role('admin', 'editor')\nassert e.has_permission('admin', 'read') is True, e.has_permission('admin', 'read')",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        }
-      ],
-      "seconds": 6.6,
-      "tool_calls": {
-        "read_file": 1
-      },
-      "questions": [],
-      "tokens": {
-        "input": 5814,
-        "output": 597
+        "input": 6085,
+        "output": 756
       },
       "run": 1
-    },
-    {
-      "file": "rbac.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 28,
-          "category": "bug",
-          "severity": "major",
-          "title": "Inheritance is only followed one level deep",
-          "explanation": "The class is described as having hierarchical role inheritance. `has_permission` only checks the direct parents' own permissions. It never looks at the parents' parents, so a permission inherited through a chain such as C -> B -> A is denied. A parent that is defined but has its own parents is also not searched.",
-          "example": "define_role('A',['read']); define_role('B',[]); define_role('C',[]); inherit_role('B','A'); inherit_role('C','B'); has_permission('C','read') returns False",
-          "fix": "Traverse ancestors transitively with a DFS or BFS and a visited set, which also protects against cycles. Check each ancestor's permissions.",
-          "test_code": "e = RBACEngine()\ne.define_role('A', ['read'])\ne.define_role('B', [])\ne.define_role('C', [])\ne.inherit_role('B', 'A')\ne.inherit_role('C', 'B')\nassert e.has_permission('C', 'read') is True, e.has_permission('C', 'read')",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        }
-      ],
-      "seconds": 6.5,
-      "tool_calls": {
-        "read_file": 1
-      },
-      "questions": [],
-      "tokens": {
-        "input": 5814,
-        "output": 547
-      },
-      "run": 2
-    },
-    {
-      "file": "rbac.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 27,
-          "category": "bug",
-          "severity": "major",
-          "title": "Inheritance is not transitive; only direct parents are checked",
-          "explanation": "The class advertises hierarchical role inheritance, but has_permission only looks at the role's immediate parents. It never follows the parents' own parents, so a permission held by a grandparent role is not granted to the grandchild.",
-          "example": "define_role('a', ['read']); define_role('b', []); define_role('c', []); inherit_role('b', 'a'); inherit_role('c', 'b'); has_permission('c', 'read') returns False, but should return True.",
-          "fix": "Traverse the inheritance graph iteratively or recursively with a visited set. Check each ancestor's permissions, and keep traversing through ancestors that have no permissions of their own.",
-          "test_code": "e = RBACEngine()\ne.define_role('a', ['read'])\ne.define_role('b', [])\ne.define_role('c', [])\ne.inherit_role('b', 'a')\ne.inherit_role('c', 'b')\nassert e.has_permission('c', 'read') is True, e.has_permission('c', 'read')",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        }
-      ],
-      "seconds": 6.9,
-      "tool_calls": {
-        "read_file": 1
-      },
-      "questions": [],
-      "tokens": {
-        "input": 5814,
-        "output": 574
-      },
-      "run": 3
-    },
-    {
-      "file": "locks.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 38,
-          "category": "bug",
-          "severity": "minor",
-          "title": "release succeeds on an expired lease",
-          "explanation": "The docstring says release unlocks the resource only if the owner holds the active lock. release never checks expires_at. An owner whose lease has expired can still release it and gets True, even though the lock is no longer active. If another owner has not yet re-acquired it, the stale entry is also treated as a valid lock.",
-          "example": "m = ResourceLockManager(default_lease_seconds=0); m.acquire('r','a'); m.release('r','a') returns True, but the lease has already expired.",
-          "fix": "In release, compare datetime.datetime.utcnow() with lock_info['expires_at']. If the lease has expired, delete the stale entry and return False.",
-          "test_code": "m = ResourceLockManager(default_lease_seconds=0)\nassert m.acquire('r', 'a') is True\nres = m.release('r', 'a')\nassert res is False, res",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        }
-      ],
-      "seconds": 7.0,
-      "tool_calls": {
-        "read_file": 1
-      },
-      "questions": [],
-      "tokens": {
-        "input": 5974,
-        "output": 577
-      },
-      "run": 1
-    },
-    {
-      "file": "locks.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 38,
-          "category": "bug",
-          "severity": "major",
-          "title": "release() succeeds on an expired lease",
-          "explanation": "The docstring says release unlocks only if the requesting owner holds the active lock. release() never checks `expires_at`. If the owner's lease has expired, it still deletes the entry and returns True, even though the owner no longer holds an active lock. An expired lock is also treated as unlocked by acquire(), so release() should be consistent and return False.",
-          "example": "m = ResourceLockManager(default_lease_seconds=-1); m.acquire('r','a'); m.release('r','a') returns True, but the lease is already expired",
-          "fix": "Check expiry before releasing: `if datetime.datetime.utcnow() >= lock_info['expires_at']: return False`. Optionally delete the stale entry first.",
-          "test_code": "m = ResourceLockManager(default_lease_seconds=-1)\nassert m.acquire('r', 'a') is True\nres = m.release('r', 'a')\nassert res is False, res",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        }
-      ],
-      "seconds": 7.0,
-      "tool_calls": {
-        "read_file": 1
-      },
-      "questions": [],
-      "tokens": {
-        "input": 5974,
-        "output": 592
-      },
-      "run": 2
-    },
-    {
-      "file": "locks.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 38,
-          "category": "bug",
-          "severity": "major",
-          "title": "release succeeds on an expired lease",
-          "explanation": "The contract says release unlocks only if the owner holds the active lock. release never checks `expires_at`. An owner whose lease has expired can still release it and gets True, even though they no longer hold an active lock. A lock that has been re-acquired is a separate case: another owner's lock is correctly refused.",
-          "example": "m = ResourceLockManager(0); m.acquire('r','a'); time.sleep(0.01); m.release('r','a') returns True",
-          "fix": "Before deleting, check `datetime.datetime.utcnow() >= lock_info['expires_at']`. If the lease has expired, drop the stale entry if you like, and return False.",
-          "test_code": "import time\nm = ResourceLockManager(0)\nassert m.acquire('r', 'a')\ntime.sleep(0.01)\nres = m.release('r', 'a')\nassert res is False, res",
-          "untestable_reason": null,
-          "verification": "confirmed"
-        },
-        {
-          "line": 16,
-          "category": "readability",
-          "severity": "minor",
-          "title": "Deprecated naive utcnow and wall-clock time",
-          "explanation": "`datetime.utcnow()` is deprecated and returns naive datetimes. It also follows the wall clock, so lease expiry can break if the system clock is adjusted. This assumes the wall clock never jumps. `time.monotonic()` would avoid that.",
-          "example": null,
-          "fix": "Use `time.monotonic()` or `datetime.now(timezone.utc)`.",
-          "test_code": null,
-          "untestable_reason": null,
-          "verification": "not_tested"
-        }
-      ],
-      "seconds": 11.5,
-      "tool_calls": {
-        "read_file": 1,
-        "run_python": 1
-      },
-      "questions": [],
-      "tokens": {
-        "input": 9896,
-        "output": 930
-      },
-      "run": 3
     },
     {
       "file": "rate_limiter.py",
       "error": null,
       "issues": [
         {
-          "line": 37,
-          "category": "readability",
+          "line": 19,
+          "category": "performance",
           "severity": "minor",
-          "title": "Wall-clock time is used, and `utcnow()` is deprecated",
-          "explanation": "`datetime.utcnow()` returns a naive datetime that follows the system clock. If the clock is adjusted backwards, `delta` is negative and no refill happens until real time catches up. The code assumes the wall clock never goes backwards, and the docstring doesn't promise that. `utcnow()` is also deprecated since Python 3.12.",
+          "title": "Bucket dictionary grows without bound",
+          "explanation": "Every distinct key adds an entry to `_buckets`, and entries are never evicted, even after they have refilled to full capacity. With many distinct keys, such as client IPs, memory grows without limit. A bucket that is full is equivalent to a missing one, so it could be dropped. The class also assumes single-threaded use. The read-modify-write in `consume` is not atomic, so concurrent callers could both pass the check.",
           "example": null,
-          "fix": "Use `time.monotonic()` and store floats. This also avoids datetime arithmetic overhead.",
+          "fix": "Periodically evict entries that have refilled to capacity, or add a TTL or max-size cap. Guard `consume` with a lock if threads are used.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         },
         {
-          "line": 19,
-          "category": "performance",
+          "line": 37,
+          "category": "readability",
           "severity": "minor",
-          "title": "Bucket entries are never evicted",
-          "explanation": "Every distinct key adds a permanent entry to `_buckets`. With many one-off keys, such as per-IP limiting, memory grows without bound. Entries that have fully refilled could be dropped.",
+          "title": "Deprecated naive utcnow() used and the clock cannot be injected",
+          "explanation": "`datetime.datetime.utcnow()` is deprecated since Python 3.12 and returns a naive datetime. The wall clock can also jump backwards. This makes the limiter hard to test deterministically. The code assumes the clock is monotonic. A backward jump freezes refill until time catches up.",
           "example": null,
-          "fix": "Periodically remove entries whose tokens would have refilled to capacity, or use a TTL/LRU cache.",
+          "fix": "Use `time.monotonic()`, or accept an injectable clock function.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
@@ -1401,63 +1681,26 @@
           "line": 33,
           "category": "readability",
           "severity": "minor",
-          "title": "`consume` has no docstring or thread safety, and its edge-case behaviour is undocumented",
-          "explanation": "The read-modify-write on `_buckets` is not atomic, so it assumes single-threaded use. Concurrent calls could over-admit requests. Requests for zero or negative tokens always return True without recording anything. Requests for more than the capacity always return False. None of this is documented.",
+          "title": "consume lacks a docstring and silently approves non-positive requests",
+          "explanation": "`consume` returns True for `tokens_to_consume <= 0` without recording anything. Neither the docstring nor the code explains this. Requests larger than the capacity can never succeed, and that is not documented either.",
           "example": null,
-          "fix": "Add a lock around the read-modify-write section and document the edge-case semantics.",
+          "fix": "Document these behaviors, or raise ValueError for non-positive counts.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 9.9,
+      "seconds": 8.4,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 6085,
-        "output": 832
-      },
-      "run": 1
-    },
-    {
-      "file": "rate_limiter.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 37,
-          "category": "readability",
-          "severity": "minor",
-          "title": "Wall-clock `utcnow()` is deprecated and not monotonic",
-          "explanation": "The code assumes the wall clock never goes backwards. If the system time is adjusted backwards, no tokens refill until time catches up. Line 45 also stores the earlier timestamp. `datetime.utcnow()` is deprecated since Python 3.12 and returns a naive datetime. The class also has no injectable clock, so it is hard to test.",
-          "example": null,
-          "fix": "Use `time.monotonic()`, or accept a clock callable in `__init__`, and store floats instead of datetimes.",
-          "test_code": null,
-          "untestable_reason": null,
-          "verification": "not_tested"
-        },
-        {
-          "line": 19,
-          "category": "performance",
-          "severity": "minor",
-          "title": "Bucket entries are never evicted",
-          "explanation": "Every distinct key adds a permanent entry to `_buckets`. With many one-off keys, such as client IPs, memory grows without bound. This assumes the key space is bounded.",
-          "example": null,
-          "fix": "Periodically remove buckets that have fully refilled, or use a TTL or LRU cache.",
-          "test_code": null,
-          "untestable_reason": null,
-          "verification": "not_tested"
-        }
-      ],
-      "seconds": 8.8,
-      "tool_calls": {
-        "read_file": 1
-      },
-      "questions": [],
-      "tokens": {
-        "input": 6085,
-        "output": 671
+        "output": 822
       },
       "run": 2
     },
@@ -1469,10 +1712,10 @@
           "line": 19,
           "category": "performance",
           "severity": "minor",
-          "title": "Per-key bucket state is never evicted",
-          "explanation": "`_buckets` gets one entry for every distinct key and nothing ever removes it. A long-running service that keys on user input such as IP addresses will grow without bound. This assumes the key space is bounded, which the docstring doesn't state. Entries for fully refilled buckets could be dropped safely.",
+          "title": "Bucket dictionary grows without bound",
+          "explanation": "Every distinct key adds an entry to `_buckets`, and nothing ever removes it. A long-running service that rate-limits by IP or user id will use more and more memory. Entries for keys that have fully refilled could be dropped, because a missing key already means a full bucket.",
           "example": null,
-          "fix": "Evict buckets that have fully refilled, or entries idle longer than capacity/refill_rate. Alternatively, cap the number of entries with an LRU.",
+          "fix": "Periodically evict buckets that have refilled to capacity, or store an expiry time and prune expired entries.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
@@ -1481,23 +1724,38 @@
           "line": 37,
           "category": "readability",
           "severity": "minor",
-          "title": "Deprecated naive utcnow() and non-monotonic clock",
-          "explanation": "`datetime.utcnow()` is deprecated since Python 3.12 and returns a naive datetime. Wall-clock time can also jump backwards, for example after an NTP adjustment. `consume` then stores the earlier timestamp, so the next refill is computed from a skewed baseline. The code assumes the clock only moves forward. There is also no locking, so concurrent calls from several threads can race on `_buckets`.",
+          "title": "Uses deprecated, naive wall-clock `utcnow()` for interval timing",
+          "explanation": "`datetime.utcnow()` is deprecated since Python 3.12 and returns a naive datetime. It is also a wall clock, so NTP adjustments can make elapsed time wrong. The code assumes the clock never goes backwards. A monotonic clock such as `time.monotonic()` fits this use better. The clock is also hard-coded, which makes the class hard to test.",
           "example": null,
-          "fix": "Use `time.monotonic()`, or `datetime.now(timezone.utc)`, and guard the read-modify-write in `consume` with a lock if threads are used.",
+          "fix": "Use `time.monotonic()`, or inject a clock function into the constructor.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        },
+        {
+          "line": 34,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Non-positive token requests silently succeed, and the class is not thread-safe",
+          "explanation": "`consume` returns True for `tokens_to_consume <= 0` without validating it, so a negative or zero request is always allowed. The read-modify-write on `_buckets` has no lock, so it assumes a single thread. Neither point is stated in the docstring.",
+          "example": null,
+          "fix": "Raise `ValueError` for non-positive requests, or document that they are allowed. Add a lock if the limiter is used from several threads.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 8.6,
+      "seconds": 9.5,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 6085,
-        "output": 782
+        "output": 926
       },
       "run": 3
     },
@@ -1508,23 +1766,23 @@
         {
           "line": 18,
           "category": "bug",
-          "severity": "critical",
-          "title": "get_session_metadata returns the whole session record instead of only the metadata",
-          "explanation": "You confirmed the method should return only the metadata dict passed to create_or_update_session. It returns the full record, which also holds the token and created_at. Callers get the wrong shape, and the session token leaks to code that only asked for metadata.",
-          "example": "m.create_or_update_session('u', {'a': 1}); m.get_session_metadata('u') returns {'token': ..., 'metadata': {'a': 1}, 'created_at': ...}, not {'a': 1}",
-          "fix": "Look up the session and return its 'metadata' value, or None if there is no session: s = self.active_sessions.get(user_id); return s['metadata'] if s else None",
-          "test_code": "m = UserSessionManager()\nm.create_or_update_session('u', {'a': 1})\nr = m.get_session_metadata('u')\nassert r == {'a': 1}, r\nassert m.get_session_metadata('missing') is None",
+          "severity": "major",
+          "title": "get_session_metadata returns the whole session record, not the metadata",
+          "explanation": "The name says it returns the session's metadata. It returns the full session dict, which holds the token, the metadata and created_at. A caller expecting only the metadata gets the wrong structure. It also exposes the session token to any caller that only wanted metadata.",
+          "example": "m = UserSessionManager(); m.create_or_update_session('u1', {'ip': '1.2.3.4'}); m.get_session_metadata('u1') returns {'token':..., 'metadata':{...}, 'created_at':...}",
+          "fix": "Return the stored metadata: `session = self.active_sessions.get(user_id); return session[\"metadata\"] if session else None`.",
+          "test_code": "m = UserSessionManager()\nm.create_or_update_session('u1', {'ip': '1.2.3.4'})\nr = m.get_session_metadata('u1')\nassert r == {'ip': '1.2.3.4'}, r\nassert m.get_session_metadata('nobody') is None",
           "untestable_reason": null,
           "verification": "confirmed"
         },
         {
           "line": 9,
           "category": "security",
-          "severity": "major",
+          "severity": "critical",
           "title": "Session token is predictable",
-          "explanation": "The token is built from the user_id and a timestamp in seconds, so anyone who knows the user id and the approximate login time can guess it. Two calls for the same user in the same second also produce the same token.",
-          "example": "create_or_update_session('alice', {}) returns 'tok_alice_<epoch seconds>'",
-          "fix": "Generate the token with secrets.token_urlsafe(32).",
+          "explanation": "The token is built from the user_id and a one-second timestamp, and both are easy to guess. An attacker can forge a valid token for any user. Two calls for the same user in the same second also return the same token.",
+          "example": "create_or_update_session('alice', {}) returns 'tok_alice_1700000000'. This can be guessed by trying nearby timestamps.",
+          "fix": "Use `secrets.token_urlsafe(32)` for the token. Keep a separate mapping from token to user if you need lookup by token.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
@@ -1533,32 +1791,26 @@
           "line": 9,
           "category": "readability",
           "severity": "minor",
-          "title": "Deprecated utcnow() and a naive datetime used for the timestamp",
-          "explanation": "datetime.utcnow() is deprecated. Calling .timestamp() on the naive result treats it as local time, so the epoch value is shifted by the local UTC offset. utcnow() is also called twice, so the token time and created_at can differ.",
+          "title": "Naive utcnow().timestamp() and deprecated utcnow",
+          "explanation": "This code assumes the server's local timezone is UTC. `datetime.utcnow()` returns a naive datetime, and `.timestamp()` interprets it as local time, so the value is wrong on any other timezone. `utcnow` is also deprecated. The same call is made twice (lines 9 and 13), so the two timestamps can differ.",
           "example": null,
-          "fix": "Call datetime.datetime.now(datetime.timezone.utc) once and reuse the result.",
+          "fix": "Call `datetime.datetime.now(datetime.timezone.utc)` once and reuse the value.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 14.2,
+      "seconds": 10.3,
       "tool_calls": {
-        "read_file": 1,
-        "ask_user": 1,
-        "run_python": 1
+        "read_file": 1
       },
-      "questions": [
-        {
-          "questions": [
-            "Should get_session_metadata return only the metadata dict passed to create_or_update_session, or the whole session record (token, metadata, created_at)?"
-          ],
-          "answers": "It returns only the metadata dict that was passed in, nothing else."
-        }
-      ],
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 12719,
-        "output": 1112
+        "input": 5617,
+        "output": 1093
       },
       "run": 1
     },
@@ -1569,12 +1821,12 @@
         {
           "line": 18,
           "category": "bug",
-          "severity": "critical",
-          "title": "get_session_metadata returns the whole session record, not just the metadata",
-          "explanation": "You confirmed the method should return only the metadata dict that was passed in. It returns the full record instead, so the caller also gets the token and created_at. That leaks the session token to anyone who only asked for metadata. The returned value is also not the metadata that was stored.",
-          "example": "m.create_or_update_session('u', {'a': 1}); m.get_session_metadata('u') returns {'token': ..., 'metadata': {'a': 1}, 'created_at': ...} instead of {'a': 1}",
-          "fix": "Look up the session and return its 'metadata' entry, or None if there is no session: `s = self.active_sessions.get(user_id); return s['metadata'] if s else None`.",
-          "test_code": "m = UserSessionManager()\nm.create_or_update_session('u', {'a': 1})\nr = m.get_session_metadata('u')\nassert r == {'a': 1}, r\nassert m.get_session_metadata('missing') is None",
+          "severity": "major",
+          "title": "get_session_metadata returns the whole session record, not the metadata",
+          "explanation": "The method name says it returns the session's metadata. It returns the full internal record, which has the keys token, metadata and created_at. Callers get the wrong structure. The session token is also exposed to anything that only asked for metadata.",
+          "example": "m = UserSessionManager(); m.create_or_update_session('u1', {'ip': '1.2.3.4'}); m.get_session_metadata('u1') returns {'token': ..., 'metadata': {...}, 'created_at': ...} instead of {'ip': '1.2.3.4'}",
+          "fix": "Return the stored metadata: `s = self.active_sessions.get(user_id); return s['metadata'] if s else None`.",
+          "test_code": "m = UserSessionManager()\nm.create_or_update_session('u1', {'ip': '1.2.3.4'})\nr = m.get_session_metadata('u1')\nassert r == {'ip': '1.2.3.4'}, r",
           "untestable_reason": null,
           "verification": "confirmed"
         },
@@ -1583,9 +1835,9 @@
           "category": "security",
           "severity": "major",
           "title": "Session token is predictable",
-          "explanation": "The token is built from the user_id and a timestamp in whole seconds, and it has no random component. Anyone who knows a user id can guess the token. Calling the method twice for the same user within one second also produces the same token.",
-          "example": null,
-          "fix": "Generate the token with `secrets.token_urlsafe(32)`.",
+          "explanation": "The token is built from the user id and a timestamp in seconds, so anyone who knows a user id and roughly when they logged in can guess it. It is not random. Calling the method twice for the same user in the same second also produces the same token.",
+          "example": "create_or_update_session('alice', {}) returns 'tok_alice_<epoch seconds>'",
+          "fix": "Use `secrets.token_urlsafe(32)` to generate the token.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
@@ -1594,32 +1846,26 @@
           "line": 9,
           "category": "readability",
           "severity": "minor",
-          "title": "Deprecated naive utcnow() combined with timestamp()",
-          "explanation": "datetime.utcnow() returns a naive datetime. Calling .timestamp() on it treats it as local time, so the number is wrong on any machine that is not set to UTC. The code also calls utcnow() twice, so the token and created_at can differ. utcnow() is deprecated as well.",
+          "title": "Naive utcnow().timestamp() is interpreted as local time",
+          "explanation": "datetime.utcnow() is deprecated and returns a naive datetime. Calling .timestamp() on it treats it as local time, so the value is wrong on any machine that isn't set to UTC. Line 13 calls utcnow() a second time, so the token time and created_at can differ.",
           "example": null,
-          "fix": "Call `now = datetime.datetime.now(datetime.timezone.utc)` once and use it for both the token and created_at.",
+          "fix": "Use `datetime.datetime.now(datetime.timezone.utc)` once and reuse it for both the token and created_at.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 14.7,
+      "seconds": 9.2,
       "tool_calls": {
-        "read_file": 1,
-        "ask_user": 1,
-        "run_python": 1
+        "read_file": 1
       },
-      "questions": [
-        {
-          "questions": [
-            "Should get_session_metadata return only the metadata dict that was passed to create_or_update_session, or the whole session record (token, metadata, created_at)?"
-          ],
-          "answers": "It returns only the metadata dict that was passed in, nothing else."
-        }
-      ],
+      "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 12799,
-        "output": 1159
+        "input": 5617,
+        "output": 1022
       },
       "run": 2
     },
@@ -1630,11 +1876,11 @@
         {
           "line": 18,
           "category": "bug",
-          "severity": "critical",
+          "severity": "major",
           "title": "get_session_metadata returns the whole session record instead of only the metadata",
-          "explanation": "You confirmed the function should return only the metadata dict passed to create_or_update_session. It returns the full record, which also holds the token and created_at. Callers get the wrong shape, and the session token is exposed to them.",
-          "example": "m = UserSessionManager(); m.create_or_update_session('u', {'a': 1}); m.get_session_metadata('u') returns {'token': ..., 'metadata': {'a': 1}, 'created_at': ...} instead of {'a': 1}",
-          "fix": "Look up the session and return its metadata: `s = self.active_sessions.get(user_id); return s['metadata'] if s else None`.",
+          "explanation": "You confirmed the method should return only the metadata dict that was passed to create_or_update_session. It returns the full record, which also holds the token and created_at. This leaks the session token to callers and returns the wrong shape.",
+          "example": "m.create_or_update_session('u', {'a': 1}); m.get_session_metadata('u') returns {'token': ..., 'metadata': {'a': 1}, 'created_at': ...} instead of {'a': 1}",
+          "fix": "Look up the session and return session['metadata'], or None if the user has no session.",
           "test_code": "m = UserSessionManager()\nm.create_or_update_session('u', {'a': 1})\nr = m.get_session_metadata('u')\nassert r == {'a': 1}, r\nassert m.get_session_metadata('missing') is None",
           "untestable_reason": null,
           "verification": "confirmed"
@@ -1643,16 +1889,16 @@
           "line": 9,
           "category": "readability",
           "severity": "minor",
-          "title": "Token is built from user_id and a one-second timestamp, and utcnow is deprecated",
-          "explanation": "This assumes tokens only need to be identifiers. Calling create_or_update_session twice for the same user within one second gives the same token. The token is also guessable. The code calls datetime.utcnow() twice, so the token time and created_at can differ. utcnow() is deprecated, and calling .timestamp() on a naive UTC datetime treats it as local time, so the number is off by the UTC offset.",
+          "title": "Token built from naive utcnow().timestamp() and not unique within a second",
+          "explanation": "datetime.utcnow() returns a naive datetime. Calling .timestamp() on it treats it as local time, so the number is wrong when the machine is not set to UTC. utcnow() is also deprecated. The token is the user id plus whole seconds, so two updates within the same second give the same token. This assumes tokens only need to identify a session. You said there is no requirement for unguessable tokens, so I am not reporting it as a security bug.",
           "example": null,
-          "fix": "Use `secrets.token_urlsafe()` for the token. Call `datetime.datetime.now(datetime.timezone.utc)` once and reuse the value.",
+          "fix": "Use datetime.datetime.now(datetime.timezone.utc) for the timestamps. Use secrets.token_urlsafe() if tokens need to be unique or unguessable.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 15.5,
+      "seconds": 16.1,
       "tool_calls": {
         "read_file": 1,
         "ask_user": 1,
@@ -1661,15 +1907,18 @@
       "questions": [
         {
           "questions": [
-            "Should get_session_metadata return only the metadata dict passed to create_or_update_session, or the whole session record (token, metadata, created_at)?",
-            "Are session tokens meant to be secret authentication credentials (unguessable), or just identifiers?"
+            "Should get_session_metadata(user_id) return only the metadata dict that was passed to create_or_update_session, or the whole session record (token, metadata, created_at)?",
+            "Are session tokens meant to be secret authentication credentials (so they must be unguessable), or just identifiers?"
           ],
           "answers": "1. It returns only the metadata dict that was passed in, nothing else.\n\n2. I have no requirement about that."
         }
       ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 12801,
-        "output": 1092
+        "input": 12897,
+        "output": 1143
       },
       "run": 3
     },
@@ -1681,16 +1930,16 @@
           "line": 5,
           "category": "readability",
           "severity": "minor",
-          "title": "Input list stored by reference and no input validation",
-          "explanation": "This assumes the caller won't modify the item list after construction. The list is stored without copying, so later changes to it change the totals. The code also does not validate discounts. A negative discount raises the price, and a percentage over 100 is silently clamped to 0. The docstring does not cover any of this, and the user stated no requirement. Adding a docstring would document the intended order: percentage first, then flat.",
+          "title": "Input list is stored by reference and inputs are not validated",
+          "explanation": "The engine assumes `base_items` is not mutated after construction, and it assumes each item has `price` and `qty` keys. Percentages outside 0-100 and negative flat discounts are accepted without any check. The clamp at 0 is also undocumented. The class and its methods have no docstrings, so these behaviors are implicit. The owner stated no requirements for them, so this is not reported as a bug.",
           "example": null,
-          "fix": "Add a docstring that states the assumptions. Optionally copy the list with list(base_items) and validate the discount ranges.",
+          "fix": "Add docstrings that state the assumptions. Copy the list with `list(base_items)` if it may be mutated later. Optionally validate the discount ranges.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 8.7,
+      "seconds": 7.9,
       "tool_calls": {
         "read_file": 1,
         "ask_user": 1
@@ -1698,15 +1947,19 @@
       "questions": [
         {
           "questions": [
-            "Should the percentage discount be applied first and then the flat discount subtracted (as the code does), or the other way around?",
-            "Should the total never go below zero (as the code does), and should invalid discounts (negative, or a percentage over 100) be rejected or clamped?"
+            "Should the percentage discount be applied before the flat discount (as the code does now)?",
+            "Should the total never go below 0, as the code does now?",
+            "Should a percentage discount outside 0-100, or a negative flat discount, be rejected or clamped instead of accepted?"
           ],
-          "answers": "1. The percentage discount should be applied first, then the flat discount subtracted.\n\n2. I have no requirement about that."
+          "answers": "1. Yes, the percentage discount should be applied first, then the flat discount should be subtracted.\n\n2. I have no requirement about that.\n\n3. I have no requirement about that."
         }
       ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 8723,
-        "output": 491
+        "input": 8773,
+        "output": 543
       },
       "run": 1
     },
@@ -1715,38 +1968,38 @@
       "error": null,
       "issues": [
         {
-          "line": 7,
-          "category": "readability",
-          "severity": "minor",
-          "title": "No docstring or input validation; discount order and range are undocumented",
-          "explanation": "`calculate_total` has no docstring. It applies the percentage discount first and the flat discount second, and it clamps the result at 0. None of this is written down. The code assumes `percentage_discount` is between 0 and 100 and that `flat_discount` is not negative. A percentage over 100 or a negative discount does not raise an error. The percentage over 100 gives a negative amount, which `max` then clamps to 0. A negative discount raises the total. I found no stated contract these inputs break, so this is a readability note and not a bug.",
-          "example": "DiscountEngine([{'price': 10, 'qty': 1}]).calculate_total(150, 0) returns 0.0",
-          "fix": "Add a docstring that states the order the discounts are applied in, the valid input ranges, and the clamping at 0. Optionally raise ValueError for out-of-range values.",
-          "test_code": null,
-          "untestable_reason": null,
-          "verification": "not_tested"
-        },
-        {
           "line": 5,
           "category": "readability",
           "severity": "minor",
-          "title": "Items list stored by reference",
-          "explanation": "`self.items` is the caller's list, not a copy. This assumes the caller does not change the list after construction. If the caller does change it, later totals change too. The docstring does not state this assumption, so it is not a bug.",
+          "title": "Engine keeps a reference to the caller's list and does not validate inputs",
+          "explanation": "The code assumes that `base_items` is not mutated after construction, because `self.items` is the caller's list and not a copy. It also assumes that every item has `price` and `qty` keys. The class has no docstring, and the discount inputs are not validated. A negative discount would raise the total, and a percentage over 100 would be clamped to 0. You said you have no requirement for those cases, so I am not reporting them as bugs.",
           "example": null,
-          "fix": "Copy the list, for example `self.items = list(base_items)`, or document that the list is shared.",
+          "fix": "Copy the list with `list(base_items)`. Add a docstring that states the discount order (percentage first, then flat) and the expected input ranges.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 7.0,
+      "seconds": 8.8,
       "tool_calls": {
-        "read_file": 1
+        "read_file": 1,
+        "ask_user": 1
       },
-      "questions": [],
+      "questions": [
+        {
+          "questions": [
+            "Should the percentage discount be applied before the flat discount, as the code does now, or the other way round?",
+            "Should a negative discount, or a percentage over 100, be rejected or clamped? Or is the current behavior fine?"
+          ],
+          "answers": "1. The percentage discount should be applied first, then the flat discount should be subtracted.\n\n2. I have no requirement about that."
+        }
+      ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 5540,
-        "output": 684
+        "input": 8721,
+        "output": 514
       },
       "run": 2
     },
@@ -1758,37 +2011,69 @@
           "line": 7,
           "category": "readability",
           "severity": "minor",
-          "title": "No docstring, and no validation of discount inputs",
-          "explanation": "The method has no docstring, so the contract is undocumented. These choices are implicit: the percentage discount is applied before the flat discount, the result is clamped to 0, and the result is rounded to 2 decimals. The code also assumes both discounts are non-negative and that the percentage is at most 100. A negative discount would raise the price. Without a stated contract these are not reportable as bugs.",
-          "example": "DiscountEngine([{\"price\": 10, \"qty\": 1}]).calculate_total(-50, 0) returns 15.0",
-          "fix": "Add a docstring that states the discount order, the clamping and the rounding. Optionally validate that 0 <= percentage_discount <= 100 and flat_discount >= 0.",
-          "test_code": null,
-          "untestable_reason": null,
-          "verification": "not_tested"
-        },
-        {
-          "line": 5,
-          "category": "readability",
-          "severity": "minor",
-          "title": "Items list is stored by reference",
-          "explanation": "The engine assumes the caller will not change base_items after construction. If the caller does, later totals change. The docstring does not state this assumption, so it is a note and not a bug. Items are also assumed to have 'price' and 'qty' keys, and a missing key raises KeyError.",
+          "title": "No docstring; discount semantics and input assumptions are undocumented",
+          "explanation": "The method has no docstring. It applies the percentage discount first and then subtracts the flat discount, and nothing says that this order is intended. It also assumes that discounts are non-negative and that percentage_discount is at most 100. Without those assumptions a negative discount raises the price. It also assumes every item has \"price\" and \"qty\" keys, and it relies on float arithmetic for money, so Decimal would be safer. The final max(0.0, ...) clamps the total to zero. I found no clear contract violation, so I am not reporting a bug.",
           "example": null,
-          "fix": "Copy the list with list(base_items) if isolation is wanted, and document the required keys.",
+          "fix": "Add a docstring that states the order of discounts, the expected ranges (0-100 for percent, >= 0 for flat) and the clamping at zero. Optionally validate the inputs, and consider Decimal for currency.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 6.3,
+      "seconds": 5.8,
       "tool_calls": {
         "read_file": 1
       },
       "questions": [],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
         "input": 5540,
-        "output": 620
+        "output": 490
       },
       "run": 3
+    },
+    {
+      "file": "pricing.py",
+      "error": null,
+      "issues": [
+        {
+          "line": 24,
+          "category": "readability",
+          "severity": "minor",
+          "title": "Undocumented assumptions: clamping at zero and default qty",
+          "explanation": "The docstring does not say that the result is clamped at 0.0. It also does not say that a missing 'qty' defaults to 1. A negative modifier_value increases the price, and the docstring does not mention that either. The docstring should state these behaviors. The vague wording ('modifier', 'adjust') also hides that modifier_value is a flat amount subtracted from the total. Rounding uses float arithmetic, so Decimal would be safer for money.",
+          "example": null,
+          "fix": "Document in the docstring that modifier_value is a flat amount subtracted, that the result is clamped at 0, and that qty defaults to 1. Consider using Decimal for currency.",
+          "test_code": null,
+          "untestable_reason": null,
+          "verification": "not_tested"
+        }
+      ],
+      "seconds": 8.3,
+      "tool_calls": {
+        "read_file": 1,
+        "ask_user": 1
+      },
+      "questions": [
+        {
+          "questions": [
+            "Is modifier_value meant to be a flat amount subtracted from the total (e.g. 5.0 means 5 off), or a percentage/fraction discount (e.g. 0.1 or 10 means 10% off)?",
+            "Should the final price ever be negative, or is clamping at 0 intended?",
+            "Is a missing 'qty' defaulting to 1 intended?"
+          ],
+          "answers": "1. modifier_value is a fixed amount subtracted from the total (e.g., 5.0 means $5 off).\n\n2. I have no requirement about that.\n\n3. I have no requirement about that."
+        }
+      ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
+      "tokens": {
+        "input": 8984,
+        "output": 534
+      },
+      "run": 1
     },
     {
       "file": "pricing.py",
@@ -1798,16 +2083,16 @@
           "line": 20,
           "category": "readability",
           "severity": "minor",
-          "title": "Vague docstring leaves modifier semantics and clamping unstated",
-          "explanation": "The code treats modifier_value as a flat amount to subtract, which the user confirmed. The docstring only says it is a value that adjusts the total. It also doesn't say the result is clamped at 0.0 (line 24) or that a missing qty defaults to 1. It assumes every item has a \"unit_price\" key, and raises KeyError if one doesn't. Floats are used for money, so rounding to 2 places can give results that are off by a cent. The docstring should state these assumptions.",
-          "example": null,
-          "fix": "Document that modifier_value is a flat discount subtracted from the total, that the result is clamped at 0, and that qty defaults to 1. Consider using Decimal for money.",
+          "title": "Money is computed with binary floats and the docstring is vague",
+          "explanation": "The docstring does not say that modifier_value is a flat amount subtracted from the total. The owner confirmed this when I asked. The docstring also does not mention that a missing qty defaults to 1, or that the result is clamped at 0. The clamp is an unstated assumption: the owner has no requirement on it. Summing floats for currency can also accumulate rounding error. Rounding only at the end hides most of that error, but Decimal or integer cents would be safer.",
+          "example": "compute_final_price([{\"unit_price\": 10.0}], 15.0) returns 0.0",
+          "fix": "Document the flat-amount semantics, the qty default and the clamp at 0 in the docstring. Consider using Decimal or integer cents for money.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 9.3,
+      "seconds": 14.1,
       "tool_calls": {
         "read_file": 1,
         "ask_user": 1
@@ -1815,54 +2100,19 @@
       "questions": [
         {
           "questions": [
-            "Is modifier_value meant to be a flat amount subtracted from the total (a discount), or something else such as a percentage or a multiplier?",
-            "If the modifier is larger than the item total, should the final price be clamped to 0, or can it go negative?",
-            "Should a negative modifier_value be allowed, so it increases the price?"
+            "Is modifier_value meant to be a flat amount subtracted from the total (e.g. 5.0 means 5 off)? Or is it a percentage or a multiplier?",
+            "Should the final price be clamped to 0 when the modifier is bigger than the total, or should a negative result be possible?",
+            "Can a line item's qty be 0 or negative, and can modifier_value be negative (a surcharge)?"
           ],
-          "answers": "1. modifier_value is a flat amount subtracted from the total.\n\n2. I have no requirement about that.\n\n3. I have no requirement about that."
+          "answers": "1. Yes, modifier_value is a fixed amount subtracted from the total (e.g., 5.0 means 5 off).\n\n2. I have no requirement about that.\n\n3. I have no requirement about that."
         }
       ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 8983,
-        "output": 561
-      },
-      "run": 1
-    },
-    {
-      "file": "pricing.py",
-      "error": null,
-      "issues": [
-        {
-          "line": 24,
-          "category": "readability",
-          "severity": "minor",
-          "title": "Undocumented clamp to zero and vague docstring",
-          "explanation": "The code matches the stated contract. The modifier is a flat amount subtracted from the total. The docstring only says the value is applied to adjust the total, so it never says the modifier is a subtraction. It also never says the result is clamped at 0.0. The code assumes a negative price is never wanted, and the user has no requirement either way. A negative modifier_value raises the price, which the docstring does not mention. A missing qty defaults to 1, and a missing unit_price raises KeyError. Neither behavior is documented.",
-          "example": null,
-          "fix": "Document in the docstring that modifier_value is a flat amount subtracted from the subtotal, that the result is floored at 0, and that qty defaults to 1.",
-          "test_code": null,
-          "untestable_reason": null,
-          "verification": "not_tested"
-        }
-      ],
-      "seconds": 9.7,
-      "tool_calls": {
-        "read_file": 1,
-        "ask_user": 1
-      },
-      "questions": [
-        {
-          "questions": [
-            "Is modifier_value a flat amount subtracted from the total (e.g. 5 means 5 off), or a percentage/fraction discount (e.g. 10 means 10% off)?",
-            "Should the final price ever be negative, or should it be clamped to 0 as the code does now?",
-            "Should a missing 'qty' default to 1, and can unit_price be missing?"
-          ],
-          "answers": "1. modifier_value is a flat amount subtracted from the total.\n\n2. I have no requirement about that.\n\n3. I have no requirement about that."
-        }
-      ],
-      "tokens": {
-        "input": 8976,
-        "output": 601
+        "input": 8997,
+        "output": 607
       },
       "run": 2
     },
@@ -1871,19 +2121,19 @@
       "error": null,
       "issues": [
         {
-          "line": 24,
+          "line": 20,
           "category": "readability",
           "severity": "minor",
-          "title": "Undocumented clamping at zero and a vague docstring",
-          "explanation": "You confirmed that modifier_value is a flat amount subtracted from the total, and the code does that. The docstring only says the modifier is a \"value applied to adjust the total sum\". It doesn't say the value is subtracted, so a negative modifier acts as a surcharge. It also doesn't say the result is silently clamped to 0.0 when the modifier exceeds the total. The code assumes the unit_price*qty arithmetic is in float currency units and rounds to 2 decimals. It also assumes every item has a \"unit_price\" key, and a missing key raises KeyError. You gave no requirement on clamping, so I'm not reporting this as a bug.",
+          "title": "Vague docstring and implicit assumptions about item shape and modifier",
+          "explanation": "The docstring says modifier_value is 'the value applied to adjust the total'. The code treats it as a flat amount subtracted from the total, and the docstring never says so. The code also silently clamps the result at 0.0, which the docstring doesn't mention. Each item must have a 'unit_price' key, and 'qty' defaults to 1, but the docstring doesn't say this either. Rounding uses float arithmetic, which can cause cent-level errors. Decimal would be safer for money.",
           "example": null,
-          "fix": "Document in the docstring that modifier_value is a flat amount subtracted from the total. Also document that the result is clamped at 0 and rounded to 2 decimals, and that each item needs a 'unit_price' key with an optional 'qty' that defaults to 1.",
+          "fix": "Document that modifier_value is a flat discount, that the result is floored at 0, and which keys each item needs. Consider using Decimal for money.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 10.0,
+      "seconds": 8.5,
       "tool_calls": {
         "read_file": 1,
         "ask_user": 1
@@ -1891,15 +2141,19 @@
       "questions": [
         {
           "questions": [
-            "What does modifier_value mean: a flat amount subtracted from the total, a percentage discount (e.g. 10 for 10% off), or a fraction (e.g. 0.1 for 10% off)?",
-            "Should the final price be clamped at 0 when the modifier is larger than the total? Should a negative modifier (a surcharge) increase the price?"
+            "Is modifier_value meant to be a flat amount subtracted from the total (e.g. 5.0 means $5 off)? Or is it a percentage or a multiplier?",
+            "Should the final price be clamped at 0 when the modifier is larger than the total?",
+            "Can modifier_value be negative, for example as a surcharge? If it can, should it increase the price?"
           ],
-          "answers": "1. A flat amount subtracted from the total.\n\n2. I have no requirement about that."
+          "answers": "1. modifier_value is a fixed amount subtracted from the total (e.g. 5.0 means $5 off).\n\n2. I have no requirement about that.\n\n3. I have no requirement about that."
         }
       ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 8971,
-        "output": 690
+        "input": 8988,
+        "output": 541
       },
       "run": 3
     },
@@ -1912,7 +2166,7 @@
           "category": "bug",
           "severity": "critical",
           "title": "VIP and non-VIP tax rates are swapped",
-          "explanation": "The user confirmed that VIP customers should pay the lower rate (10%) and non-VIP customers the higher rate (17%). The code does the opposite, so VIPs are overcharged and everyone else is undercharged.",
+          "explanation": "VIP customers should pay the lower rate of 10%, and non-VIP customers should pay 17%. The code does the opposite. It charges VIPs 17% and everyone else 10%.",
           "example": "compute_total_with_tax(100, True) returns 117.0 but should return 110.0. compute_total_with_tax(100, False) returns 110.0 but should return 117.0.",
           "fix": "Use `tax_rate = 0.10 if is_vip else 0.17`.",
           "test_code": "c = TaxCalculator()\nassert c.compute_total_with_tax(100, True) == 110.0, c.compute_total_with_tax(100, True)\nassert c.compute_total_with_tax(100, False) == 117.0, c.compute_total_with_tax(100, False)",
@@ -1923,33 +2177,35 @@
           "line": 3,
           "category": "readability",
           "severity": "minor",
-          "title": "Negative subtotal silently returns 0.0 and there is no docstring",
-          "explanation": "The function has no docstring. Negative subtotals are quietly turned into 0.0 instead of raising an error or being handled explicitly. This could hide errors such as refunds. The intended behavior is undefined. The tax rates are also magic numbers.",
+          "title": "Negative subtotal is silently turned into 0.0",
+          "explanation": "The code assumes that a negative subtotal should return 0.0. Nothing documents this. It could hide caller errors such as refunds. The method also has no docstring, and the magic tax rates are hard-coded.",
           "example": null,
-          "fix": "Add a docstring that states the behavior for negative input. Define the rates as named constants.",
+          "fix": "Add a docstring that states the negative-input behavior. Consider raising ValueError. Move the rates into named constants.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 14.3,
+      "seconds": 9.1,
       "tool_calls": {
         "read_file": 1,
-        "ask_user": 1,
-        "run_python": 1
+        "ask_user": 1
       },
       "questions": [
         {
           "questions": [
-            "Should VIP customers pay a higher tax rate (17%) than non-VIP customers (10%), or is that reversed?",
-            "What should happen when the subtotal is negative (for example a refund)? The code returns 0.0. Is that intended, or should it raise an error or return a negative total?"
+            "Should VIP customers pay a higher tax rate (17%) than non-VIP (10%), or is that swapped (VIP should be lower)?",
+            "For a negative subtotal, is returning 0.0 the intended behavior, or should it raise an error?"
           ],
-          "answers": "1. VIP customers pay a lower tax rate (10%) than non-VIP customers (17%).\n\n2. I have no requirement about that."
+          "answers": "1. VIP customers should pay a lower tax rate (10%), while non-VIP customers pay the higher rate (17%).\n\n2. I have no requirement about that."
         }
       ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 11727,
-        "output": 860
+        "input": 8493,
+        "output": 702
       },
       "run": 1
     },
@@ -1961,9 +2217,9 @@
           "line": 6,
           "category": "bug",
           "severity": "critical",
-          "title": "VIP and non-VIP tax rates are swapped",
-          "explanation": "The user confirmed that VIP customers should pay 10% tax and non-VIP customers 17%. The code does the opposite. VIPs are charged 17% and everyone else 10%.",
-          "example": "compute_total_with_tax(100, True) returns 117.0, but should return 110.0",
+          "title": "VIP and regular tax rates are swapped",
+          "explanation": "You confirmed that VIP customers should pay 10% and regular customers 17%. The code does the opposite: VIPs are charged 17% and regular customers 10%. A VIP subtotal of 100 gives 117.0 instead of 110.0.",
+          "example": "TaxCalculator().compute_total_with_tax(100, True) returns 117.0, but it should return 110.0",
           "fix": "Use `tax_rate = 0.10 if is_vip else 0.17`.",
           "test_code": "t = TaxCalculator()\nassert t.compute_total_with_tax(100, True) == 110.0, t.compute_total_with_tax(100, True)\nassert t.compute_total_with_tax(100, False) == 117.0, t.compute_total_with_tax(100, False)",
           "untestable_reason": null,
@@ -1974,15 +2230,15 @@
           "category": "readability",
           "severity": "minor",
           "title": "Negative subtotal silently returns 0.0, and there is no docstring",
-          "explanation": "The function assumes a negative subtotal should give 0.0 instead of raising an error or computing a result. This hides invalid input. There is no docstring to document that choice or the tax rates. The user has no requirement here.",
+          "explanation": "The function has no docstring, and the 0.0 result for a negative subtotal is not documented. It assumes that a negative subtotal should become 0.0 instead of raising an error or being treated as a refund. Callers can't tell that this happens. Also, the tax rates are hard-coded magic numbers.",
           "example": null,
-          "fix": "Add a docstring that states the rates and the negative-input behavior, or raise ValueError for negative input.",
+          "fix": "Add a docstring that states the behavior for negative input. Move the rates into named constants.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 13.1,
+      "seconds": 11.1,
       "tool_calls": {
         "read_file": 1,
         "ask_user": 1,
@@ -1991,15 +2247,18 @@
       "questions": [
         {
           "questions": [
-            "Should VIP customers pay a higher tax rate (17%) than non-VIP customers (10%), or is the VIP rate meant to be lower?",
-            "When the subtotal is negative (for example a refund), should the function return 0.0, raise an error, or compute the tax on the negative amount?"
+            "In compute_total_with_tax, VIP customers are charged a higher tax rate (17%) than non-VIP customers (10%). Is that intended, or should VIPs pay less?",
+            "For a negative subtotal, should the function return 0.0, raise an error, or something else (e.g. refunds)?"
           ],
-          "answers": "1. VIP customers should pay a lower tax rate at 10%, while non-VIP customers pay 17%.\n\n2. I have no requirement about that."
+          "answers": "1. VIP customers should pay a lower tax rate (10%), not higher. Regular users should pay 17%.\n\n2. I have no requirement about that."
         }
       ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 11708,
-        "output": 791
+        "input": 11690,
+        "output": 832
       },
       "run": 2
     },
@@ -2012,8 +2271,8 @@
           "category": "bug",
           "severity": "critical",
           "title": "VIP and non-VIP tax rates are swapped",
-          "explanation": "The owner confirmed that VIP customers should pay the lower rate (10%) and non-VIP customers the higher rate (17%). The code does the opposite, so every total is wrong.",
-          "example": "compute_total_with_tax(100, True) returns 117.0 but should return 110.0. compute_total_with_tax(100, False) returns 110.0 but should return 117.0.",
+          "explanation": "The user confirmed that VIP customers should pay the lower rate (10%) and non-VIP customers the higher rate (17%). The code does the reverse. VIP customers are charged 17% and everyone else 10%.",
+          "example": "compute_total_with_tax(100, True) returns 117.0, but should return 110.0. compute_total_with_tax(100, False) returns 110.0, but should return 117.0.",
           "fix": "Use `tax_rate = 0.10 if is_vip else 0.17`.",
           "test_code": "c = TaxCalculator()\nassert c.compute_total_with_tax(100, True) == 110.0, c.compute_total_with_tax(100, True)\nassert c.compute_total_with_tax(100, False) == 117.0, c.compute_total_with_tax(100, False)",
           "untestable_reason": null,
@@ -2023,32 +2282,36 @@
           "line": 3,
           "category": "readability",
           "severity": "minor",
-          "title": "Negative subtotal silently returns 0.0, and there is no docstring",
-          "explanation": "The function gives no signal that the input was invalid. It assumes that 0.0 is the right result for a negative subtotal. The tax rates are magic numbers, and nothing documents the intended behavior.",
+          "title": "Negative subtotal silently returns 0.0 and the method has no docstring",
+          "explanation": "The method has no docstring. It silently turns a negative subtotal into 0.0 instead of raising an error, which can hide upstream bugs. There is no stated requirement for this case, so it is not reported as a bug. It also uses float arithmetic for money.",
           "example": null,
-          "fix": "Add a docstring that states the intended behavior, such as raising ValueError for a negative subtotal. Move the rates into named constants.",
+          "fix": "Add a docstring that states the rates and the negative-input behavior. Consider raising ValueError, and consider using Decimal for money.",
           "test_code": null,
           "untestable_reason": null,
           "verification": "not_tested"
         }
       ],
-      "seconds": 10.6,
+      "seconds": 10.7,
       "tool_calls": {
         "read_file": 1,
-        "ask_user": 1
+        "ask_user": 1,
+        "run_python": 1
       },
       "questions": [
         {
           "questions": [
-            "Should VIP customers pay a higher tax rate (17%) than non-VIP customers (10%), or is that swapped?",
-            "For a negative subtotal, is returning 0.0 intended, or should it raise an error or be handled differently?"
+            "Should VIP customers pay a higher tax rate (17%) than non-VIP (10%), or is the VIP rate meant to be lower?",
+            "For a negative subtotal, should the function return 0.0, or raise an error?"
           ],
-          "answers": "1. VIP customers pay a lower tax rate (10%) than non-VIP customers (17%).\n\n2. I have no requirement about that."
+          "answers": "1. VIP customers should pay a lower tax rate (10%) than non-VIP customers (17%).\n\n2. I have no requirement about that."
         }
       ],
+      "critic": [],
+      "critic_rounds": 0,
+      "critic_tokens": {},
       "tokens": {
-        "input": 8486,
-        "output": 709
+        "input": 11636,
+        "output": 831
       },
       "run": 3
     }
