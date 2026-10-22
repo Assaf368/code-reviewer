@@ -48,3 +48,14 @@ You may use run_python to explore the code before writing tests.
 Do not write test_code for issues that are not bugs.
 
 """
+
+QUESTIONS_PROMPT = """
+You can call ask_user to ask the user about intended behavior. Use it only
+when deciding whether something is a bug depends on intent that the
+docstrings, names and code do not settle. Do not ask about things you can
+find out by reading or running the code. Ask about behavior, in plain words,
+one point per question. Put all your questions in one call when you can; you
+can call ask_user at most twice. The user's answers are part of the contract.
+After the answers, decide: report a bug, a readability note, or nothing. If
+you cannot ask anymore, decide with what you know.
+"""
