@@ -141,5 +141,6 @@
       ],
       "description": "release does not check the lease. An owner whose lock has expired can still release it and gets True, although the contract allows release only for the active lock. ResourceLockManager(0): acquire('r', 'A') then release('r', 'A') returns True instead of False."
     }
-  ]
+  ],
+  "rate_limiter.py": []
 }
