@@ -95,6 +95,7 @@ Out of scope for v1.0 (list it in the README as possible next steps): parallel r
 - `user_utils.py` tests false positives. Traps (correct code that looks wrong, not labeled): the shared mutable default `cache` on line 1 (the docstring makes it intentional and forbids modifying the result) and `for ... else` on lines 21-26. Line 32 has a readability label: `not (flags ^ flags)` is always True.
 - `store.py` is the long file (~200 lines, 5 classes) with 3 bugs: wrong charged_amount, oversell with repeated items, ENABLE_DISCOUNTS ignored. Decided as not bugs through the docstrings: hash-based user ids (stable in one process, same username replaces the user), float money rounded to 2 decimals, deduct_stock doing nothing when stock is short. Still an easy hint: total_amount is computed and never used.
 - The eval prints every false positive with its line, to see whether it landed on a trap.
+- Labels may carry `"contract": "implied"` when the docstring gives only an indirect hint (rbac.py). Report those apart from files with an explicit contract; they are the test set for the future "ask the user" step.
 
 ## Roadmap (from README)
 

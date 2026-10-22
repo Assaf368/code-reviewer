@@ -118,5 +118,17 @@
       ],
       "description": "get returns the stored object itself. Changing the returned dict changes the cache, so the next get returns the changed value. Fixing set alone does not fix this."
     }
+  ],
+  "rbac.py": [
+    {
+      "category": "bug",
+      "lines": [
+        27,
+        28,
+        29
+      ],
+      "contract": "implied",
+      "description": "has_permission checks only direct parents, not their parents. With admin -> editor -> viewer, viewer does not get admin's permissions. No explicit contract: 'hierarchical role inheritance' in the class docstring is the only hint."
+    }
   ]
 }
