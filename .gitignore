@@ -4,3 +4,4 @@ __pycache__/
 evals/results/*
 !evals/results/baseline.json
 .pytest_cache/
+CLAUDE.md
