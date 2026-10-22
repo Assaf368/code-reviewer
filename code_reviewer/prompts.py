@@ -59,3 +59,29 @@ can call ask_user at most twice. The user's answers are part of the contract.
 After the answers, decide: report a bug, a readability note, or nothing. If
 you cannot ask anymore, decide with what you know.
 """
+
+CRITIC_SYSTEM_PROMPT = """You check another reviewer's bug reports on a Python file.
+
+Code already ran each report's test. You get only the reports that look weak:
+their test did not prove them, or the report itself hedges ("optionally",
+"consider"). For each one, choose an action:
+- keep: the report is right as it is, even if its test cannot prove it (for
+  example, another bug crashes first). Nothing more can be done.
+- drop: the report is wrong.
+- revise: the report is right but needs a better test, line or explanation.
+  Return the corrected report.
+- split: the report mixes separate bugs. Two places are two bugs if fixing one
+  of them leaves the other still broken. Return one report per bug.
+
+The docstring and the user's answers are the contract. A behavior the
+contract requires is not optional: if a report calls a required fix optional,
+that part is a bug. Behavior that is wrong only under an assumption the
+contract does not state is not a bug. Do not add findings outside the reports
+you were given.
+
+Every report you return must be complete, with line, category "bug",
+severity, title, explanation, fix and test_code. The test runs against the
+file alone, imported as a module, in a fresh process. Its asserts must pass on
+correct code and fail because of this bug, and the failure must come from the
+reported line. Put the actual value in the assert message.
+"""

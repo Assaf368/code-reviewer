@@ -36,3 +36,26 @@ class Issue(BaseModel):
 
 class ReviewResult(BaseModel):
     issues: list[Issue]
+
+CriticAction = Literal["keep", "drop", "revise", "split"]
+
+
+class CriticDecision(BaseModel):
+    report: int = Field(description="The number of the report, as given")
+    action: CriticAction = Field(
+        description=(
+            "keep: right as it is, even if its test cannot prove it. "
+            "drop: wrong. "
+            "revise: right, but needs a better test, line or explanation. "
+            "split: it mixes separate bugs."
+        )
+    )
+    reason: str = Field(description="One or two sentences on why")
+    issues: list[Issue] = Field(
+        default_factory=list,
+        description="For revise: the corrected report. For split: one report per bug. Empty otherwise.",
+    )
+
+
+class CriticResult(BaseModel):
+    decisions: list[CriticDecision]
