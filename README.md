@@ -6,7 +6,7 @@ An AI code review agent built with [LangChain](https://docs.langchain.com). It r
 
 Every reported bug also comes with an assert-based test. The model writes the test, but the project's own code runs it and decides whether the bug is real. A bug that is not proven by its test is shown as unproven.
 
-When the code does not say what it is supposed to do, the reviewer can pause and ask the user, then continue the review with the answer.
+When the code does not say what it is supposed to do, the reviewer can pause and ask the user, then continue the review with the answer. Bug reports that verification could not prove go to a stronger model, a critic, which keeps, drops, fixes or splits them. Only those reports reach it, so it runs on a small share of reviews.
 
 The project is built in stages, starting from a single agent and growing into a multi-agent system orchestrated with LangGraph.
 
@@ -71,6 +71,36 @@ The reviewer has questions about the intended behavior:
 
 In the eval, a simulated user (Claude Haiku) answers. It knows the intended behavior from [`evals/questions.json`](evals/questions.json) but never whether the code is right, answers only what is asked, and says "I have no requirement about that" to anything else. Every question and answer is printed so leaks are easy to spot.
 
+## The critic
+
+The pipeline is a LangGraph `StateGraph`:
+
+```mermaid
+flowchart TD
+    S([start]) --> R["review<br/>reviewer agent: read_file, run_python, ask_user"]
+    R --> V["verify<br/>run the test of every new report"]
+    V -- "a weak bug report" --> C["critic (Opus)<br/>keep / drop / revise / split"]
+    C --> V
+    V -- "nothing weak left" --> E([end])
+```
+
+Calling a stronger model on every review would double the cost for little gain, so code decides when it is worth it. A bug report reaches the critic only if its test did not prove it, or if the report hedges ("optionally", "consider"). Readability notes never do.
+
+The critic sees the file, the user's answers and only those reports. For each one it decides:
+
+- **keep**: right as it is, even if no test can prove it. This ends the loop, so an unprovable bug does not cost a call every round.
+- **drop**: wrong.
+- **revise**: right, but with a better test, line or explanation.
+- **split**: two bugs in one report.
+
+Whatever the critic writes is verified again by code. A report reaches the critic at most twice, and the second time only if the critic's own version is still unproven.
+
+Two real decisions from the eval:
+
+> **split** (cache.py): "The contract requires get to return the value as it was at set time, so copying on get is required, not optional. Copying in set and copying in get are separate fixes: each leaves the other mutation path broken."
+
+> **keep** (product_except_self.py): "The guard `i == len(nums)` can never be true, so at i = n-1 the loop reads index n. This is a separate bug from the empty-list initialization. A test cannot reach line 16 because line 13 always raises IndexError first."
+
 ## Evaluation
 
 The eval runs the real pipeline on a labeled dataset and compares the reported bugs to the labels.
@@ -105,6 +135,18 @@ Each step changed one thing and was measured against the previous run.
 - Half of the questions (10/20) were about details that did not matter, like "should a negative subtotal raise an error?". The answers did not change the result, but a real user would notice.
 - A review takes about 9.5 seconds on average, against 8 without questions.
 
+**3. The critic** (all 16 files, with questions). Before it, the cache file's second bug was found in 1 of 3 runs: the reviewer saw it but called the fix "optional".
+
+| | Recall | Recall (confirmed) | Precision | Critic calls |
+| --- | --- | --- | --- | --- |
+| With `ask_user` | 43/45 | 37/45 | 43/43 | – |
+| With `ask_user` and the critic | 45/45 | 39/45 | 45/45 | 6 of 48 reviews |
+
+- The critic ran on 6 of 48 reviews and used about 4% of the input tokens the reviewer used.
+- It changed one report: the merged cache report, split into two confirmed bugs. In the other two cache runs the reviewer split it on its own, so part of the gain is run-to-run variation.
+- It kept five: three for the bug that another bug hides (correctly, and once per review), and two that only hedged about something the contract does not require. Hedging words are a rough signal.
+- A review that reaches the critic takes about 18 seconds, against 10 on average.
+
 ### What the eval showed
 
 - The model never reported a bug on the clean file or on the traps.
@@ -135,7 +177,7 @@ Each step changed one thing and was measured against the previous run.
 | – | Eval with a labeled dataset | Python, unit tests | ✅ |
 | 4 | Parallel specialist reviewers: security, performance, code quality | LangGraph | |
 | 5 | Routing: small diffs get one reviewer, large diffs get all three | LangGraph conditional edges | |
-| 6 | Critic agent that filters false positives and loops back for revisions | LangGraph cycles | |
+| 6 | Critic for weak bug reports, called only when code flags one | LangGraph `StateGraph`, conditional edges | ✅ |
 | – | Ask the user about intended behavior | LangGraph `interrupt`, checkpointer | ✅ |
 | 7 | Human-in-the-loop approval before posting to GitHub | LangGraph checkpointer | |
 
@@ -145,7 +187,8 @@ Each step changed one thing and was measured against the previous run.
 code-reviewer/
 ├── code_reviewer/
 │   ├── __main__.py        # CLI entry point
-│   ├── pipeline.py        # review_file(): run the agent, then verify each issue
+│   ├── pipeline.py        # review_file(): LangGraph graph review -> verify -> critic
+│   ├── critique.py        # Which reports reach the critic, and applying its decisions
 │   ├── verification.py    # Runs each bug's test and classifies the result
 │   ├── config.py          # Settings and environment variables
 │   ├── prompts.py         # System prompt
@@ -156,7 +199,8 @@ code-reviewer/
 │   │   ├── execution.py   # Test runner and the run_python tool
 │   │   └── questions.py   # ask_user tool (pauses the agent for an answer)
 │   └── agents/
-│       └── reviewer.py    # Reviewer agent definition
+│       ├── reviewer.py    # Reviewer agent definition
+│       └── critic.py      # Critic agent (no tools, structured decisions)
 ├── evals/
 │   ├── dataset/           # Files with known bugs and traps
 │   ├── labels.json        # Where the bugs are
@@ -193,12 +237,13 @@ cp .env.example .env
 
 ```bash
 python -m code_reviewer samples/two_sum.py     # review a file (may ask you questions)
-python -m code_reviewer samples/two_sum.py --no-questions
+python -m code_reviewer samples/two_sum.py --no-questions --no-critic
 pytest                                         # unit tests, no API calls
 
 python -m evals.run_eval                       # full eval (calls the model)
 python -m evals.run_eval --only store.py       # selected dataset files
 python -m evals.run_eval --no-questions        # the reviewer cannot ask the simulated user
+python -m evals.run_eval --no-critic           # no critic for weak bug reports
 python -m evals.run_eval --rescore evals/results/baseline.json    # re-score saved runs, no API calls
 python -m evals.run_eval --reverify evals/results/baseline.json   # re-run saved tests with current verification
 ```
@@ -211,6 +256,7 @@ Set these in `.env`:
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | Anthropic API key | required |
 | `REVIEWER_MODEL` | Model in `provider:model` format. Sonnet is recommended for review quality | `claude-haiku-4-5` |
+| `CRITIC_MODEL` | Model that checks weak bug reports | `anthropic:claude-opus-5-5` |
 | `SIMULATED_USER_MODEL` | Model that answers the reviewer's questions in the eval | `anthropic:claude-haiku-4-5` |
 | `LANGSMITH_TRACING` | Set to `true` to enable tracing | off |
 | `LANGSMITH_API_KEY` | LangSmith API key | |
