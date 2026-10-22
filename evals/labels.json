@@ -93,5 +93,14 @@
       ],
       "description": "calculate_total ignores the ENABLE_DISCOUNTS setting. With it set to False, SUMMER10 still gives 1263.6 for 1 Laptop instead of 1404.0."
     }
+  ],
+  "cart.py": [
+    {
+      "category": "bug",
+      "lines": [
+        39
+      ],
+      "description": "Tax is computed on subtotal instead of the discounted subtotal. With one item at 100.0 and a 50% discount, checkout returns 60.0 instead of 55.0."
+    }
   ]
 }
