@@ -8,7 +8,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
 from code_reviewer.agents.critic import build_critic
-from code_reviewer.agents.reviewer import build_reviwer
+from code_reviewer.agents.reviewer import build_reviewer
 from code_reviewer.config import CRITIC_MODEL, MODELNAME
 from code_reviewer.critique import apply_decisions, needs_critic, new_item, render_for_critic
 from code_reviewer.schemas import ReviewResult
@@ -68,7 +68,7 @@ def build_review_graph(
     """
 
     def review(state: ReviewState) -> dict:
-        agent = build_reviwer(model, ask_user=answer_questions is not None)
+        agent = build_reviewer(model, ask_user=answer_questions is not None)
         config = {"configurable": {"thread_id": str(uuid.uuid4())}}
         result = agent.invoke(
             {"messages": [{"role": "user", "content": f"Review the file {state['file_path']}"}]},

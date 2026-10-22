@@ -8,7 +8,9 @@ Every reported bug also comes with an assert-based test. The model writes the te
 
 When the code does not say what it is supposed to do, the reviewer can pause and ask the user, then continue the review with the answer. Bug reports that verification could not prove go to a stronger model, a critic, which keeps, drops, fixes or splits them. Only those reports reach it, so it runs on a small share of reviews.
 
-The project is built in stages, starting from a single agent and growing into a multi-agent system orchestrated with LangGraph.
+The project is built in stages, starting from a single agent and growing into a multi-agent system orchestrated with LangGraph. Each stage was added because the eval showed a specific failure, and was measured after it was added.
+
+**Stack:** Python, LangChain, LangGraph (`StateGraph`, `interrupt`), Claude Sonnet / Opus / Haiku, Pydantic, pytest, GitHub Actions, LangSmith tracing.
 
 ## Example output
 
@@ -50,6 +52,8 @@ Diagrams of the whole flow (review, verification, eval) are in [docs/pipeline.md
 | `inconclusive` | An assert inside the reviewed code failed |
 | `test_error` | The test itself is broken (syntax error, unknown name, timeout) |
 | `unverified` | The model explained why the bug cannot be tested with a simple assert |
+| `missing_test` | The model reported a bug without a test or a reason |
+| `source_error` | The reviewed file failed to import |
 
 `line_not_reached` uses `sys.settrace` to record which lines of the reviewed file ran. It was added after the eval showed a test that "confirmed" a bug on unreachable code: the test failed, but because of a different line.
 
@@ -175,10 +179,10 @@ Each step changed one thing and was measured against the previous run.
 | 2 | Run code to verify reported bugs | Subprocess runner, `sys.settrace` | ✅ |
 | 3 | Structured output: issues with severity and line numbers | Pydantic, structured output | ✅ |
 | – | Eval with a labeled dataset | Python, unit tests | ✅ |
+| – | Ask the user about intended behavior | LangGraph `interrupt`, checkpointer | ✅ |
+| 6 | Critic for weak bug reports, called only when code flags one | LangGraph `StateGraph`, conditional edges | ✅ |
 | 4 | Parallel specialist reviewers: security, performance, code quality | LangGraph | |
 | 5 | Routing: small diffs get one reviewer, large diffs get all three | LangGraph conditional edges | |
-| 6 | Critic for weak bug reports, called only when code flags one | LangGraph `StateGraph`, conditional edges | ✅ |
-| – | Ask the user about intended behavior | LangGraph `interrupt`, checkpointer | ✅ |
 | 7 | Human-in-the-loop approval before posting to GitHub | LangGraph checkpointer | |
 
 ## Project structure
@@ -191,7 +195,7 @@ code-reviewer/
 │   ├── critique.py        # Which reports reach the critic, and applying its decisions
 │   ├── verification.py    # Runs each bug's test and classifies the result
 │   ├── config.py          # Settings and environment variables
-│   ├── prompts.py         # System prompt
+│   ├── prompts.py         # System prompts (reviewer, questions, critic)
 │   ├── schemas.py         # Pydantic models for the review output
 │   ├── formatting.py      # Terminal rendering of a review
 │   ├── tools/
@@ -255,7 +259,7 @@ Set these in `.env`:
 | Variable | Description | Default |
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | Anthropic API key | required |
-| `REVIEWER_MODEL` | Model in `provider:model` format. Sonnet is recommended for review quality | `claude-haiku-4-5` |
+| `REVIEWER_MODEL` | Model that writes the review, in `provider:model` format | `anthropic:claude-sonnet-5-5` |
 | `CRITIC_MODEL` | Model that checks weak bug reports | `anthropic:claude-opus-5-5` |
 | `SIMULATED_USER_MODEL` | Model that answers the reviewer's questions in the eval | `anthropic:claude-haiku-4-5` |
 | `LANGSMITH_TRACING` | Set to `true` to enable tracing | off |
@@ -266,4 +270,4 @@ Set these in `.env`:
 ## Security
 
 - The `read_file` tool resolves every path against the project root and refuses anything outside it, so the agent cannot read arbitrary files (for example `../../.ssh/id_rsa`).
-- Tests written by the model run locally in a separate process with a timeout. That is fine for a learning project, but production use would need a real sandbox such as a container.
+- Tests written by the model run locally in a separate process (`python -I`) with a timeout. That is enough for a local tool on your own code, but running it on untrusted code would need a real sandbox such as a container.

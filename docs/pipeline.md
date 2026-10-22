@@ -34,9 +34,12 @@ flowchart TD
     end
 
     AGENT --> OUT["ReviewResult<br/>list of Issue: line, category, severity,<br/>title, explanation, fix,<br/>test_code or untestable_reason"]
-    OUT --> VERIFY["verify_issue() for each issue<br/>no model involved"]
-    VERIFY --> RR["ReviewRun<br/>issues + statuses + tool calls + tokens"]
-    RR --> PRINT["print_review<br/>summary line built in code,<br/>issues by severity,<br/>not_reproduced listed apart"]
+    OUT --> VERIFY["verify_issue() for each issue<br/>no model involved (section 2)"]
+    VERIFY --> CRIT{"a weak bug report?"}
+    CRIT -- yes --> CRITIC["critic (Opus): keep / drop / revise / split<br/>new reports are verified again,<br/>at most twice per report"]
+    CRITIC --> VERIFY
+    CRIT -- no --> RR["ReviewRun<br/>issues + statuses, questions and answers,<br/>critic decisions, tool calls, tokens"]
+    RR --> PRINT["print critic decisions, then print_review:<br/>summary line built in code,<br/>issues by severity,<br/>not_reproduced listed apart"]
 ```
 
 ## 2. Verifying one issue
@@ -84,17 +87,17 @@ The eval runs the same `review_file()` as the CLI, on a copy of each dataset fil
 
 ```mermaid
 flowchart TD
-    START["python -m evals.run_eval<br/>optional --only files"] --> LABELS["load labels.json"]
+    START["python -m evals.run_eval<br/>--only files, --no-questions, --no-critic"] --> LABELS["load labels.json"]
     LABELS --> TRACE["one LangSmith trace: run_eval"]
     TRACE --> EACH["for each file, 3 runs"]
     EACH --> ISO["isolated_repo: copy the one file<br/>into an empty temp dir,<br/>point PROJECT_ROOT there"]
     ISO --> REV["review_file()<br/>same pipeline as the CLI"]
     REV <--> SIM["simulated user (Haiku)<br/>knows the intent from questions.json,<br/>never the verdict"]
-    REV --> REC["record: issues + statuses, questions and answers,<br/>seconds, tool calls, tokens,<br/>or the error if the run failed"]
+    REV --> REC["record: issues + statuses, questions and answers,<br/>critic decisions, seconds, tool calls, tokens,<br/>or the error if the run failed"]
     REC --> SAVE["save results JSON after every run"]
     SAVE --> EACH
     SAVE --> SCORE["score_file: match issues to labels<br/>same category, line within 1"]
-    SCORE --> TABLE["table: recall and precision at 3 levels<br/>all / confirmed / confirmed + crashed<br/>+ duplicates, miscategorized, failed runs"]
+    SCORE --> TABLE["table: recall and precision at 3 levels<br/>all / confirmed / confirmed + crashed<br/>+ duplicates, miscategorized, failed runs,<br/>questions, critic calls"]
 
     OLD["saved results JSON"] --> RESCORE["--rescore: score again with current labels"]
     OLD --> REVERIFY["--reverify: rerun the saved tests<br/>with current verification"]

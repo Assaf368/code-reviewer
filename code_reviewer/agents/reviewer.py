@@ -9,7 +9,7 @@ from code_reviewer.tools.files import read_file
 from code_reviewer.tools.questions import make_ask_user
 
 
-def build_reviwer(model=MODELNAME, ask_user: bool = False):
+def build_reviewer(model=MODELNAME, ask_user: bool = False):
     """Build the reviewer agent. With ask_user it can pause to ask the user questions."""
     if not ask_user:
         return create_agent(
