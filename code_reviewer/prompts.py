@@ -19,6 +19,13 @@ state and does not imply (for example, that an input list is not modified,
 or that generated ids are unique). Even if the assumption is reasonable, do
 not report it as a bug. If it is worth mentioning, report it as readability
 and name the assumption in the explanation.
+
+Report each bug once, and do not merge separate bugs. Two places are two bugs
+if fixing one of them leaves the other still broken (for example, the same
+mistake copied into two functions). If the places must change together for
+the code to work, it is one bug: report it on the line that needs the main
+change. A broken function that is called from several places is one bug, on
+the line inside that function.
 Do not report trivial style nits unless they hurt readability.
 
 For every bug, write test_code: Python statements with assert that state
