@@ -39,5 +39,16 @@
       "question": "Should get_session_metadata return only the metadata passed to create_or_update_session?",
       "answer": "Yes, the name says so. Returning the whole record with the token is a bug."
     }
+  ],
+  "discount_engine.py": [
+    {
+      "lines": [
+        10,
+        11
+      ],
+      "kind": "missing",
+      "question": "Should the percentage discount be applied before the flat discount, or after it?",
+      "answer": "Percentage first, then the flat amount, as the code does. Correct code, no bug."
+    }
   ]
 }

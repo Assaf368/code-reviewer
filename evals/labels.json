@@ -159,5 +159,6 @@
       ],
       "description": "The token is built from the user id and a timestamp in seconds, so it can be guessed. A real issue, labeled so a bug report here counts as miscategorized, not as a false positive."
     }
-  ]
+  ],
+  "discount_engine.py": []
 }
