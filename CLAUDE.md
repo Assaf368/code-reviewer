@@ -74,6 +74,8 @@ Verification statuses: `confirmed`, `not_reproduced`, `crashed`, `inconclusive`,
 
 ## Goal: v1.0 (agreed 2026-10-20, a few days of work)
 
+**Status (2026-10-22): done.** CI, ask_user with a simulated user, the critic as a LangGraph node, all measured on 16 files and written up in the README. Baseline: 45/45 recall, 45/45 precision, critic on 6 of 48 reviews.
+
 The project can grow forever, so v1.0 is the finish line. It should show real, correct engineering to recruiters.
 
 1. CI: GitHub Actions runs pytest on every push (Python 3.11 and 3.14). Badge in the README.
